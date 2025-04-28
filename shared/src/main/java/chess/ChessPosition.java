@@ -8,7 +8,17 @@ package chess;
  */
 public class ChessPosition {
 
+    private int row;
+    private int col;
+
     public ChessPosition(int row, int col) {
+        if (row < 0 || col < 0 || row > 8 || col > 8)
+        {
+            throw new IllegalArgumentException();
+        }
+
+        this.row = row;
+        this.col = col;
     }
 
     /**
@@ -16,7 +26,7 @@ public class ChessPosition {
      * 1 codes for the bottom row
      */
     public int getRow() {
-        throw new RuntimeException("Not implemented");
+        return row;
     }
 
     /**
@@ -24,6 +34,6 @@ public class ChessPosition {
      * 1 codes for the left row
      */
     public int getColumn() {
-        throw new RuntimeException("Not implemented");
+        return col;
     }
 }
