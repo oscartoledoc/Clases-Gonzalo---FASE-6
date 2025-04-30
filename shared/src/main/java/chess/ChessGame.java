@@ -10,7 +10,13 @@ import java.util.Collection;
  */
 public class ChessGame {
 
+    private ChessBoard board;
+    private TeamColor teamTurn;
+
     public ChessGame() {
+        board = new ChessBoard();
+        board.resetBoard();
+        teamTurn = TeamColor.WHITE;
 
     }
 
@@ -18,7 +24,7 @@ public class ChessGame {
      * @return Which team's turn it is
      */
     public TeamColor getTeamTurn() {
-        throw new RuntimeException("Not implemented");
+        return teamTurn;
     }
 
     /**
@@ -27,7 +33,8 @@ public class ChessGame {
      * @param team the team whose turn it is
      */
     public void setTeamTurn(TeamColor team) {
-        throw new RuntimeException("Not implemented");
+        this.teamTurn = team;
+
     }
 
     /**
@@ -46,7 +53,11 @@ public class ChessGame {
      * startPosition
      */
     public Collection<ChessMove> validMoves(ChessPosition startPosition) {
-        throw new RuntimeException("Not implemented");
+        ChessPiece piece = board.getPiece(startPosition);
+        if (piece == null) {
+            return null;
+        }
+        return piece.pieceMoves(board, startPosition);
     }
 
     /**
@@ -56,8 +67,61 @@ public class ChessGame {
      * @throws InvalidMoveException if move is invalid
      */
     public void makeMove(ChessMove move) throws InvalidMoveException {
-        throw new RuntimeException("Not implemented");
+
+        if (move == null) {
+            throw new InvalidMoveException("Move cannot be null");
+        }
+        ChessPosition startPosition = move.getStartPosition();
+        ChessPosition endPosition = move.getEndPosition();
+        ChessPiece piece = board.getPiece(startPosition);
+
+        if (piece == null) {
+            throw new InvalidMoveException("No piece at start position");
+        }
+
+        if (piece.getTeamColor() != teamTurn) {
+            throw new InvalidMoveException("Not your turn");
+        }
+
+        Collection<ChessMove> validMoves = piece.pieceMoves(board, startPosition);
+
+        boolean isValidMove = false;
+
+        for (ChessMove validMove : validMoves) {
+            if (validMove.getStartPosition().equals(startPosition)
+                    && validMove.getEndPosition().equals(endPosition)
+                    && (validMove.getPromotionPiece() == null && move.getPromotionPiece() == null || (validMove.getPromotionPiece() != null && validMove.getPromotionPiece().equals(move.getPromotionPiece()))))  {
+                isValidMove = true;
+                break;
+
+            }
+        }
+
+        if (!isValidMove) {
+            throw new InvalidMoveException("Invalid move");
+        }
+
+
+        board.addPiece(endPosition, piece);
+        board.addPiece(startPosition, null);
+
+        if (piece.getPieceType() == ChessPiece.PieceType.PAWN) {
+            if (endPosition.getRow() == 8) {
+                board.addPiece(new ChessPosition(endPosition.getRow() - 1, endPosition.getColumn()), new ChessPiece(TeamColor.BLACK, ChessPiece.PieceType.QUEEN));
+            } else if (endPosition.getRow() == 1) {}
+        }
+
+
+
+
+
+
+
+
+
     }
+
+
 
     /**
      * Determines if the given team is in check
