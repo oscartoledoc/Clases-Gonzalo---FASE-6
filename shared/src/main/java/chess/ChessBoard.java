@@ -47,7 +47,7 @@ public class ChessBoard {
     public void resetBoard() {
         board = new ChessPiece[8][8];
 
-        for (int col = 1; col <= 9; col++){
+        for (int col = 1; col <= 8; col++){
             addPiece(new ChessPosition(2, col), new ChessPiece(ChessGame.TeamColor.WHITE, ChessPiece.PieceType.PAWN));
             addPiece(new ChessPosition(7, col), new ChessPiece(ChessGame.TeamColor.BLACK, ChessPiece.PieceType.PAWN));
         }

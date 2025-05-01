@@ -238,4 +238,22 @@ public class ChessPiece {
         return result;
     }
 
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ChessPiece that = (ChessPiece) o;
+        return pieceColor == that.pieceColor &&
+                type == that.type;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = pieceColor.hashCode();
+        result = 31 * result + type.hashCode();
+        return result;
+
+    }
+
 }
