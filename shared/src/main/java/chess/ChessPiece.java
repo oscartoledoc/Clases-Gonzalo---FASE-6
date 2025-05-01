@@ -192,7 +192,7 @@ public class ChessPiece {
     }
 
     private boolean isValidPosition(int row, int col) {
-        return row >= 0 && row < 8 && col >= 0 && col < 8;
+        return row >= 1 && row <= 8 && col >= 1 && col <= 8;
     }
 
 
@@ -225,6 +225,7 @@ public class ChessPiece {
                     if (targetPiece.getTeamColor() != pieceColor) {
                         moves.add(new ChessMove(myPosition, new_pos, null));
                     }
+                    break;
                 }
             }
         }
