@@ -2,6 +2,7 @@ package chess;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Represents a single chess piece
@@ -169,22 +170,24 @@ public class ChessPiece {
                 break;
 
             case ROOK:
-                moves.addAll(getMove(board, myPosition, moves, new int[]{0, 1}, new int[] {1, 0}));
-                moves.addAll(getMove(board, myPosition, moves, new int[]{0, -1}, new int[] {-1, 0}));
+                moves.addAll(getMove(board, myPosition, new int[]{0, 1}));
+                moves.addAll(getMove(board, myPosition, new int[]{1, 0}));
+                moves.addAll(getMove(board, myPosition, new int[]{0, -1}));
+                moves.addAll(getMove(board, myPosition, new int[]{-1, 0}));
                 break;
 
 
 
             case QUEEN:
-                moves.addAll(getMove(board, myPosition, moves, new int[]{0, 1}, new int[] {1, 0}));
-                moves.addAll(getMove(board, myPosition, moves, new int[]{0, -1}, new int[] {-1, 0}));
-                moves.addAll(getMove(board, myPosition, moves, new int[]{1, 1}, new int[] {1, -1}));
-                moves.addAll(getMove(board, myPosition, moves, new int[]{-1, 1}, new int[] {-1, -1}));
+                moves.addAll(getMove(board, myPosition, new int[]{0, 1}, new int[] {1, 0}));
+                moves.addAll(getMove(board, myPosition, new int[]{0, -1}, new int[] {-1, 0}));
+                moves.addAll(getMove(board, myPosition, new int[]{1, 1}, new int[] {1, -1}));
+                moves.addAll(getMove(board, myPosition, new int[]{-1, 1}, new int[] {-1, -1}));
                 break;
 
             case BISHOP:
-                moves.addAll(getMove(board, myPosition, moves, new int[]{1, 1}, new int[] {1, -1}));
-                moves.addAll(getMove(board, myPosition, moves, new int[]{-1, 1}, new int[] {-1, -1}));
+                moves.addAll(getMove(board, myPosition, new int[]{1, 1}, new int[] {1, -1}));
+                moves.addAll(getMove(board, myPosition, new int[]{-1, 1}, new int[] {-1, -1}));
                 break;
 
         }
@@ -196,7 +199,10 @@ public class ChessPiece {
     }
 
 
-    private Collection<ChessMove> getMove(ChessBoard board, ChessPosition myPosition, Collection<ChessMove> moves, int[]... directions) {
+    private Collection<ChessMove> getMove(ChessBoard board, ChessPosition myPosition, int[]... directions) {
+
+        List<ChessMove> result = new ArrayList<>();
+
         int row = myPosition.getRow();
         int col = myPosition.getColumn();
 
@@ -218,18 +224,18 @@ public class ChessPiece {
                 ChessPiece targetPiece = board.getPiece(new_pos);
 
                 if (targetPiece == null) {
-                    moves.add(new ChessMove(myPosition, new_pos, null));
+                    result.add(new ChessMove(myPosition, new_pos, null));
                 }
                 else
                 {
                     if (targetPiece.getTeamColor() != pieceColor) {
-                        moves.add(new ChessMove(myPosition, new_pos, null));
+                        result.add(new ChessMove(myPosition, new_pos, null));
                     }
                     break;
                 }
             }
         }
-        return moves;
+        return result;
     }
 
 }
