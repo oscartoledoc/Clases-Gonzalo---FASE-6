@@ -14,11 +14,43 @@ public class ChessGame {
     private ChessBoard board;
     private TeamColor teamTurn;
 
+    private boolean whiteKingMove;
+    private boolean blackKingMove;
+    private boolean whiteRookRMove;
+    private boolean whiteRookLMove;
+    private boolean blackRookRMove;
+    private boolean blackRookLMove;
+
     public ChessGame() {
         board = new ChessBoard();
         board.resetBoard();
         teamTurn = TeamColor.WHITE;
+        whiteKingMove = false;
+        blackKingMove = false;
+        whiteRookRMove = false;
+        whiteRookLMove = false;
+        blackRookRMove = false;
+        blackRookLMove = false;
 
+    }
+
+    private boolean isUnderAttack (ChessPosition position, TeamColor teamColor) {
+        TeamColor opponentColor = (teamColor == TeamColor.WHITE) ? TeamColor.BLACK : TeamColor.WHITE;
+        for (int row = 1; row <= 8; row++) {
+            for (int col = 1; col <= 8; col++) {
+                ChessPosition enemyPosition = new ChessPosition(row, col);
+                ChessPiece piece = board.getPiece(enemyPosition);
+                if (piece != null && piece.getTeamColor() == teamColor) {
+                    Collection<ChessMove> enemyMoves = piece.pieceMoves(board, enemyPosition);
+                    for (ChessMove move : enemyMoves) {
+                        if (move.getEndPosition().equals(position)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -121,6 +153,12 @@ public class ChessGame {
         }
 
         Collection<ChessMove> validMoves = piece.pieceMoves(board, startPosition);
+
+        if (piece.getPieceType() == ChessPiece.PieceType.KING) {
+            int row = startPosition.getRow();
+            int colDiff = endPosition.getColumn() - startPosition.getColumn();
+
+        }
 
         boolean isValidMove = false;
 
