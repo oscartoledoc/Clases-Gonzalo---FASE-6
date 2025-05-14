@@ -18,25 +18,29 @@ public class GameService {
 
     public CreateGameResult createGame(String authToken, String gameName) throws DataAccessException{
         if (!isValidAuthToken(authToken)) throw new DataAccessException("Unauthorized");
-        String username = dataaccess.getUser(authToken).username();
+        AuthData auth = dataaccess.getAuth(authToken);
+        String username = auth.username();
         UserData user = dataaccess.getUser(username);
         if (user == null) throw new DataAccessException("Invalid user");
         int gameID = dataaccess.generateGameID();
         if (gameID < 0) throw new DataAccessException("Unable to generate game ID");
-        GameData game = new GameData(gameID, null, gameName, null, null);
+        GameData game = new GameData(gameID, null,null, gameName, null);
         dataaccess.createGame(game);
         return new CreateGameResult(gameID);
     }
 
     public JoinGameResult joinGame(String authToken, int gameID, String playerColor) throws DataAccessException{
         if (!isValidAuthToken(authToken)) throw new DataAccessException("Unauthorized");
-        String username = dataaccess.getUser(authToken).username();
+        AuthData auth = dataaccess.getAuth(authToken);
+        String username = auth.username();
+        UserData user = dataaccess.getUser(username);
+        if (user == null) throw new DataAccessException("Invalid user");
         GameData game = dataaccess.getGame(gameID);
         if (game == null) throw new DataAccessException("Invalid game");
         if ("White".equals(playerColor) && game.whiteUsername() != null) throw new DataAccessException("Player already joined");
         if ("Black".equals(playerColor) && game.blackUsername() != null) throw new DataAccessException("Player already joined");
 
-        game = new GameData(gameID, "White".equals(playerColor) ? username : game.whiteUsername(), "Black".equals(playerColor) ? username : game.blackUsername(), game.gameName(), game.game());
+        game = new GameData(gameID, "White".equals(playerColor.toLowerCase()) ? username : game.whiteUsername(), "Black".equals(playerColor.toLowerCase()) ? username : game.blackUsername(), game.gameName(), game.game());
 
         dataaccess.updateGame(gameID, game);
 

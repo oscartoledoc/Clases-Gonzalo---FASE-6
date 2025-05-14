@@ -6,7 +6,6 @@ import dataaccess.dataAccess;
 import model.AuthData;
 import model.GameData;
 import model.UserData;
-import org.eclipse.jetty.util.resource.EmptyResource;
 import service.*;
 import com.google.gson.Gson;
 import spark.*;
@@ -130,8 +129,18 @@ public class Server {
             }
             try {
                 AuthData auth = dataaccess.getAuth(authToken);
-                if (auth != null) {
-                    UserData user = dataaccess.getUser(auth.username());
+                if (auth == null) {
+                    res.status(401);
+                    return gson.toJson(new ErrorResponse("Error: Unauthorized"));
+                }
+                UserData user = dataaccess.getUser(auth.username());
+                if (user == null) {
+                    res.status(401);
+                    return gson.toJson(new ErrorResponse("Error: Unauthorized"));
+                }
+                if (req.body() == null || req.body().trim().isEmpty()){
+                    res.status(401);
+                    return gson.toJson(new ErrorResponse("Error: Unauthorized"));
                 }
                 CreateGameRequest request = gson.fromJson(req.body(), CreateGameRequest.class);
                 if (request == null || request.gameName == null) {
