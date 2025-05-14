@@ -3,7 +3,9 @@ package server;
 import dataaccess.DataAccessException;
 import dataaccess.MemoryDataAccess;
 import dataaccess.dataAccess;
+import model.AuthData;
 import model.GameData;
+import model.UserData;
 import org.eclipse.jetty.util.resource.EmptyResource;
 import service.*;
 import com.google.gson.Gson;
@@ -127,6 +129,10 @@ public class Server {
                 return gson.toJson(new ErrorResponse("Error: Unauthorized"));
             }
             try {
+                AuthData auth = dataaccess.getAuth(authToken);
+                if (auth != null) {
+                    UserData user = dataaccess.getUser(auth.username());
+                }
                 CreateGameRequest request = gson.fromJson(req.body(), CreateGameRequest.class);
                 if (request == null || request.gameName == null) {
                     res.status(400);

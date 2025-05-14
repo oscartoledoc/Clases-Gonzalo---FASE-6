@@ -19,7 +19,10 @@ public class GameService {
     public CreateGameResult createGame(String authToken, String gameName) throws DataAccessException{
         if (!isValidAuthToken(authToken)) throw new DataAccessException("Unauthorized");
         String username = dataaccess.getUser(authToken).username();
+        UserData user = dataaccess.getUser(username);
+        if (user == null) throw new DataAccessException("Invalid user");
         int gameID = dataaccess.generateGameID();
+        if (gameID < 0) throw new DataAccessException("Unable to generate game ID");
         GameData game = new GameData(gameID, null, gameName, null, null);
         dataaccess.createGame(game);
         return new CreateGameResult(gameID);
