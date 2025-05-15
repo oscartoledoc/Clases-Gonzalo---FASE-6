@@ -184,9 +184,9 @@ public class Server {
                 } else if (e.getMessage().equals("Invalid Game") || e.getMessage().equals("Invalid Color")) {
                     res.status(400);
                     return gson.toJson(new ErrorResponse("Error: Bad request"));
-                } else if (e.getMessage().equals("Game full")) {
+                } else if (e.getMessage().equals("Player already joined")) {
                     res.status(403);
-                    return  gson.toJson(new ErrorResponse("Error: Game full"));
+                    return  gson.toJson(new ErrorResponse("Error: Player already joined"));
                 }
                 res.status(500);
                 return gson.toJson(new ErrorResponse("Error: " + e.getMessage()));
