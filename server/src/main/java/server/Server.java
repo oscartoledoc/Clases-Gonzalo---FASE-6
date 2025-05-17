@@ -10,6 +10,7 @@ import service.*;
 import com.google.gson.Gson;
 import spark.*;
 import service.Results.*;
+import dataaccess.MySQLDataAccess;
 
 public class Server {
 
@@ -21,7 +22,11 @@ public class Server {
     private final Gson gson;
 
     public Server() {
-        this.dataaccess = new MemoryDataAccess();
+        try {
+            this.dataaccess = new MySQLDataAccess();
+        }catch (DataAccessException e){
+            throw new RuntimeException("Unable to connect to database", e);
+        }
         this.userService = new UserService(dataaccess);
         this.gameService = new GameService(dataaccess);
         this.sessionService = new SessionService(dataaccess);

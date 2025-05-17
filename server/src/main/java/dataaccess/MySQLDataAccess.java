@@ -14,7 +14,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class MySQLDataAccess implements dataAccess {
+public class MySQLDataAccess implements dataAccess {
     private final Gson gson = new Gson();
 
     public MySQLDataAccess() throws DataAccessException {
@@ -30,7 +30,7 @@ public abstract class MySQLDataAccess implements dataAccess {
                     "username VARCHAR (255) NOT NULL,\n" +
                     "FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE\n" +
                     ");");
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTSgames (\n" +
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS games (\n" +
                     "gameID INT PRIMARY KEY AUTO_INCREMENT,\n" +
                     "whiteUsername VARCHAR (255),\n" +
                     "blackUsername VARCHAR (255),\n" +
@@ -60,9 +60,9 @@ public abstract class MySQLDataAccess implements dataAccess {
     @Override
     public void createUser(UserData user) throws DataAccessException {
         try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement("INSERT INTO users(username, password, email) VALUES (?, ?, ?)") ) {
-            //String hashedPassword = BCrypt.with(BCrypt).hashToString(12, user.password().toCharArray());
+            String hashedPassword = BCrypt.hashpw(user.password(), BCrypt.gensalt(12));
             stmt.setString(1, user.username());
-            //stmt.setString(2, user.hashedPassword());
+            stmt.setString(2, hashedPassword);
             stmt.setString(3, user.email());
             stmt.executeUpdate();
         } catch (SQLException e){
@@ -183,51 +183,38 @@ public abstract class MySQLDataAccess implements dataAccess {
 
     @Override
     public void clear() throws DataAccessException{
-        try (Connection conn = DatabaseManager.getConnection(); Statement stmt = conn.createStatement()){
-            stmt.executeUpdate("DELETE FROM games");
-            stmt.executeUpdate("DELETE FROM auth");
-            stmt.executeUpdate("DELETE FROM users");
-        } catch (SQLException e) {
-            throw new DataAccessException("failed to clear database " + e.getMessage());
+            deleteAllGames();
+            deleteAllAuth();
+            deleteAllUsers();
+    }
+
+
+
+    @Override
+    public void deleteAllUsers() throws DataAccessException{
+        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement("DELETE FROM users")){
+            stmt.executeUpdate();
+        } catch (SQLException e){
+            throw new DataAccessException("failed to delete all users " + e.getMessage());
         }
     }
 
     @Override
-    public int getUserCount() throws DataAccessException{
-        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) AS count FROM users")){
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()){
-                return rs.getInt("count");
-            }
-            return 0;
+    public void deleteAllAuth() throws DataAccessException{
+        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement("DELETE FROM auth")){
+            stmt.executeUpdate();
         } catch (SQLException e){
-            throw new DataAccessException("failed to get user count " + e.getMessage());
+            throw new DataAccessException("failed to delete all auths " + e.getMessage());
         }
+
     }
 
     @Override
-    public int getAuthCount() throws DataAccessException{
-        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) AS count FROM auth")){
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()){
-                return rs.getInt("count");
-            }
-            return 0;
+    public void deleteAllGames() throws DataAccessException{
+        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement("DELETE FROM games")){
+            stmt.executeUpdate();
         } catch (SQLException e){
-            throw new DataAccessException("failed to get auth count " + e.getMessage());
-        }
-    }
-
-    @Override
-    public int getGameCount() throws DataAccessException{
-        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) AS count FROM games")){
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()){
-                return rs.getInt("count");
-            }
-            return 0;
-        } catch (SQLException e){
-            throw new DataAccessException("failed to get game count " + e.getMessage());
+            throw new DataAccessException("failed to delete all games " + e.getMessage());
         }
     }
 
