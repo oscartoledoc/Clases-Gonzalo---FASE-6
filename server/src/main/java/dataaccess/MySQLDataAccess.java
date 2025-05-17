@@ -2,6 +2,7 @@ package dataaccess;
 
 import chess.ChessGame;
 import com.google.gson.Gson;
+import com.mysql.cj.x.protobuf.MysqlxCrud;
 import model.AuthData;
 import model.GameData;
 import model.UserData;
@@ -172,7 +173,12 @@ public class MySQLDataAccess implements dataAccess {
             stmt.executeUpdate();
             try (ResultSet rs = stmt.getGeneratedKeys()) {
                 if (rs.next()) {
-                    return rs.getInt(1);
+                    int gameID = rs.getInt(1);
+                    try (PreparedStatement stmt2 = conn.prepareStatement("DELETE FROM games WHERE gameID = ?")) {
+                        stmt2.setInt(1, gameID);
+                        stmt2.executeUpdate();
+                    }
+                    return gameID;
                 }
                 throw new DataAccessException("failed to generate gameID");
             }

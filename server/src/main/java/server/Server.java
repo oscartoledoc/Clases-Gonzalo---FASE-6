@@ -103,8 +103,8 @@ public class Server {
                 res.status(200);
                 return gson.toJson(new EmptyResponse());
             } catch (DataAccessException e) {
-                res.status(401);
-                return gson.toJson(new ErrorResponse("Error: unauthorized"));
+                res.status(500);
+                return gson.toJson(new ErrorResponse("Error: Bad Request"));
             }
         });
         Spark.get("/game", (req, res) -> {
