@@ -60,7 +60,6 @@ public class DatabaseTests {
         serverFacade.joinPlayer(new TestJoinRequest(ChessGame.TeamColor.WHITE, createResult.getGameID()), auth);
 
         Assertions.assertTrue(initialRowCount < getDatabaseRows(), "No new data added to database");
-
         // Test that we can read the data after a restart
         stopServer();
         startServer();

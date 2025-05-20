@@ -2,6 +2,15 @@ package dataaccess;
 
 import model.*;
 import com.google.gson.Gson;
+<<<<<<< HEAD
+=======
+import com.mysql.cj.x.protobuf.MysqlxCrud;
+import model.AuthData;
+import model.GameData;
+import model.UserData;
+import org.eclipse.jetty.server.Authentication;
+import org.mindrot.jbcrypt.BCrypt;
+>>>>>>> 64a2b808d2159e88c96b577d82df4a6923ac4796
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -174,9 +183,22 @@ public class MySQLDataAccess implements dataAccess {
              PreparedStatement stmt = conn.prepareStatement("INSERT INTO games (gameName) VALUES ('temp'); SELECT LAST_INSERT_ID() AS gameID")) {
             stmt.setString(1, "temp");
             stmt.executeUpdate();
+<<<<<<< HEAD
             ResultSet rs = stmt.executeQuery("SELECT LAST_INSERT_ID() AS gameID");
             if (rs.next()) {
                 return rs.getInt("gameID");
+=======
+            try (ResultSet rs = stmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    int gameID = rs.getInt(1);
+                    try (PreparedStatement stmt2 = conn.prepareStatement("DELETE FROM games WHERE gameID = ?")) {
+                        stmt2.setInt(1, gameID);
+                        stmt2.executeUpdate();
+                    }
+                    return gameID;
+                }
+                throw new DataAccessException("failed to generate gameID");
+>>>>>>> 64a2b808d2159e88c96b577d82df4a6923ac4796
             }
             throw new DataAccessException("Failed to generate game ID");
         } catch (SQLException e) {
