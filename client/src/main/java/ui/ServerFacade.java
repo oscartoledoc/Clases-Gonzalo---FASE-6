@@ -1,0 +1,84 @@
+package ui;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
+import java.net.*;
+
+public class ServerFacade {
+    private final String serverURL;
+    public ServerFacade(String serverURL){
+        this.serverURL = serverURL;
+    }
+
+    private String sendPostRequest(String endpoint, Map<String, String> data) throws IOException {
+        URL url = new URL(serverURL + endpoint);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setDoOutput(true);
+        String jsonInputString = mapToJson(data);
+        try (OutputStream os = conn.getOutputStream()){
+            byte[] input = jsonInputString.getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))) {
+            StringBuilder response = new StringBuilder();
+            String responseLine;
+            while ((responseLine = br.readLine()) != null) {
+                response.append(responseLine.trim());
+            }
+            return response.toString();
+        } catch (IOException e) {
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))){
+                StringBuilder errorResponse = new StringBuilder();
+                String errorLine;
+                while ((errorLine = br.readLine()) != null) {
+                    errorResponse.append(errorLine.trim());
+                }
+                throw new IOException("Server error: " + errorResponse.toString());
+            }
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+
+
+    private String mapToJson(Map<String, String> data) {
+        StringBuilder json = new StringBuilder("{");
+        boolean first = true;
+        for (Map.Entry<String, String> entry : data.entrySet()) {
+            if (!first) {
+                json.append(", ");
+            }
+            json.append("\"").append(entry.getKey()).append("\":\"").append(entry.getValue()).append("\"");
+            first = false;
+        }
+        json.append("}");
+        return json.toString();
+    }
+
+    public String register(String username, String password, String email) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("username", username);
+        data.put("password", password);
+        data.put("email", email);
+        return sendPostRequest("/register", data);
+    }
+
+    public String login(String username, String password) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("username", username);
+        data.put("password", password);
+        return sendPostRequest("/login", data);
+    }
+
+
+
+}
