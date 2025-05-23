@@ -4,6 +4,7 @@ import dataaccess.*;
 import dataaccess.DataAccessException;
 import model.AuthData;
 import model.GameData;
+import model.UserData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,7 @@ public class GameServiceTests {
     @Test
     @DisplayName("Create Game Success")
     void testCreateGameSuccess() throws DataAccessException{
+        dataAccess.createUser(new UserData("user1", "pass1", "email1"));
         dataAccess.createAuth(new AuthData("user1", "token123"));
         AuthData auth = dataAccess.getAuth("token123");
         if (auth == null) {
@@ -66,6 +68,42 @@ public class GameServiceTests {
         assertThrows(DataAccessException.class, () ->
         {gameService.createGame("invalidToken", "newGame");},
                 "Should throw Exception on Invalid Game Name");
+    }
+
+    @Test
+    @DisplayName("Join Game Success")
+    void testJoinGameSuccess() throws DataAccessException{
+        dataAccess.createUser(new UserData("user1", "pass1", "email1"));
+        dataAccess.createAuth(new AuthData("user1", "token123"));
+        int gameID = dataAccess.generateGameID();
+        dataAccess.createGame(new GameData(gameID, null, null, "game1", null));
+        gameService.joinGame("token123", gameID, "white");
+        GameData game = dataAccess.getGame(gameID);
+        assertEquals("user1", game.whiteUsername(), "White player should be set");
+    }
+
+    @Test
+    @DisplayName("Join Game Failure")
+    void testJoinGameFailure() throws DataAccessException{
+        dataAccess.createUser(new UserData("user1", "pass1", "email1"));
+        dataAccess.createAuth(new AuthData("user1", "token123"));
+        int gameID = dataAccess.generateGameID();
+        dataAccess.createGame(new GameData(gameID, "user2", null, "game1", null));
+
+        assertThrows(DataAccessException.class, () ->
+        {gameService.joinGame("token123", gameID, "white");},
+                "Should throw Exception for Already Taken Spot");
+    }
+
+    @Test
+    @DisplayName("Clear Success")
+    void testClearSuccess() throws DataAccessException{
+        dataAccess.createUser(new UserData("user1", "pass1", "email1"));
+        dataAccess.createAuth(new AuthData("user1", "token123"));
+        int gameID = dataAccess.generateGameID();
+        dataAccess.createGame(new GameData(gameID, null, null, "game1", null));
+        dataAccess.clear();
+        assertEquals(0, dataAccess.getAllGames().length, "All games should be cleared");
     }
 
 
