@@ -3,20 +3,26 @@ package dataaccess;
 import model.*;
 import com.google.gson.Gson;
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 import com.mysql.cj.x.protobuf.MysqlxCrud;
+=======
+>>>>>>> 726ae349759646bd07832797a57f2a7e76ca12d5
 import model.AuthData;
 import model.GameData;
 import model.UserData;
-import org.eclipse.jetty.server.Authentication;
 import org.mindrot.jbcrypt.BCrypt;
 >>>>>>> 64a2b808d2159e88c96b577d82df4a6923ac4796
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 726ae349759646bd07832797a57f2a7e76ca12d5
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MySQLDataAccess implements dataAccess {
+public class MySQLDataAccess implements DataAccess {
     private final Gson gson = new Gson();
 
     public MySQLDataAccess() throws DataAccessException {

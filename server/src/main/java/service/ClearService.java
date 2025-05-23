@@ -1,14 +1,14 @@
 package service;
 
 import dataaccess.DataAccessException;
-import dataaccess.dataAccess;
+import dataaccess.DataAccess;
 
 import service.Results.*;
 
 public class ClearService{
-    private final dataAccess dataaccess;
+    private final DataAccess dataaccess;
 
-    public ClearService(dataAccess dataaccess){
+    public ClearService(DataAccess dataaccess){
         this.dataaccess = dataaccess;
     }
     public Result clear() throws DataAccessException {

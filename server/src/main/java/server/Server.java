@@ -1,8 +1,7 @@
 package server;
 
 import dataaccess.DataAccessException;
-import dataaccess.MemoryDataAccess;
-import dataaccess.dataAccess;
+import dataaccess.DataAccess;
 import model.AuthData;
 import model.GameData;
 import model.UserData;
@@ -14,7 +13,7 @@ import dataaccess.MySQLDataAccess;
 
 public class Server {
 
-    private final dataAccess dataaccess;
+    private final DataAccess dataaccess;
     private final UserService userService;
     private final GameService gameService;
     private final SessionService sessionService;
