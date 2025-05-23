@@ -1,5 +1,6 @@
 package ui;
 
+import javax.crypto.spec.HKDFParameterSpec;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -12,8 +13,18 @@ import java.net.*;
 
 public class ServerFacade {
     private final String serverURL;
+    private String authToken;
     public ServerFacade(String serverURL){
         this.serverURL = serverURL;
+        this.authToken = null;
+    }
+
+    public String getAuthToken() {
+        return authToken;
+    }
+
+    public void setAuthToken(String authToken) {
+        this.authToken = authToken;
     }
 
     private String sendPostRequest(String endpoint, Map<String, String> data) throws IOException {
@@ -49,6 +60,55 @@ public class ServerFacade {
     }
 
 
+    private String sendGetRequest(String endpoint) throws IOException {
+        URL url = new URL(serverURL + endpoint);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Authorization", authToken);
+        return handleResponse(conn);
+    }
+
+    private String sendDeleteRequest(String endpoint) throws IOException {
+        URL url = new URL(serverURL + endpoint);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("DELETE");
+        conn.setRequestProperty("Authorization", authToken);
+        return handleResponse(conn);
+    }
+
+    private String sendPutRequest(String endpoint, Map<String, String> data) throws IOException {
+        URL url = new URL(serverURL + endpoint);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("PUT");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setRequestProperty("Authorization", authToken);
+        conn.setDoOutput(true);
+        String jsonInputString = mapToJson(data);
+        try (OutputStream os = conn.getOutputStream()){
+            byte[] input = jsonInputString.getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        return handleResponse(conn);
+    }
+
+    private String handleResponse(HttpURLConnection conn) throws IOException {
+        int responseCode = conn.getResponseCode();
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(responseCode>=400?conn.getErrorStream():conn.getInputStream(), "utf-8"))) {
+            StringBuilder response = new StringBuilder();
+            String responseLine;
+            while ((responseLine = br.readLine()) != null) {
+                response.append(responseLine.trim());
+            }
+            if (responseCode>=400) {
+                throw new IOException("Server error (HTTP " + responseCode + "): " + response.toString());
+            }
+            return response.toString();
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+
 
     private String mapToJson(Map<String, String> data) {
         StringBuilder json = new StringBuilder("{");
@@ -69,14 +129,47 @@ public class ServerFacade {
         data.put("username", username);
         data.put("password", password);
         data.put("email", email);
-        return sendPostRequest("/register", data);
+        String response = sendPostRequest("/user", data);
+        authToken = ExtractAuthToken(response);
+        return response;
     }
 
     public String login(String username, String password) throws IOException {
         Map<String, String> data = new HashMap<>();
         data.put("username", username);
         data.put("password", password);
-        return sendPostRequest("/login", data);
+        String response = sendPostRequest("/session", data);
+        authToken = ExtractAuthToken(response);
+        return response;
+    }
+
+    public String logout() throws IOException {
+        String response = sendDeleteRequest("/session");
+        authToken = null;
+        return response;
+    }
+
+    public String listGames() throws IOException {
+        return sendGetRequest("/game");
+    }
+
+    public String createGame(String gameName) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("gameName", gameName);
+        return sendPostRequest("/game", data);
+    }
+    public String joinGame(String gameId, String playerColor) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("gameId", gameId);
+        data.put("playerColor", playerColor);
+        return sendPutRequest("/game", data);
+    }
+
+    private String ExtractAuthToken(String response) {
+        int start = response.indexOf("\"authToken\":\"");
+        start += "\"authToken\":\"".length();
+        int end = response.indexOf("\"", start);
+        return response.substring(start, end);
     }
 
 

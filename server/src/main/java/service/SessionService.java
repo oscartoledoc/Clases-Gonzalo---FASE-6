@@ -1,17 +1,14 @@
 package service;
 
 import dataaccess.DataAccessException;
-import dataaccess.dataAccess;
-import model.*;
+import dataaccess.DataAccess;
 
 import service.Results.*;
 
-import java.util.UUID;
-
 public class SessionService {
-    private final dataAccess dataaccess;
+    private final DataAccess dataaccess;
 
-    public SessionService(dataAccess dataaccess) {
+    public SessionService(DataAccess dataaccess) {
         this.dataaccess = dataaccess;
     }
 

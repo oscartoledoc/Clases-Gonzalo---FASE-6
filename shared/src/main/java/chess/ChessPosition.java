@@ -14,7 +14,7 @@ public class ChessPosition {
     public ChessPosition(int row, int col) {
         if (row < 0 || col < 0 || row > 8 || col > 8)
         {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("Invalid position");
         }
 
         this.row = row;
@@ -39,13 +39,17 @@ public class ChessPosition {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         ChessPosition that = (ChessPosition) o;
 
-        return row == that.row &&
-                col == that.col;
+        return row == that.row
+                && col == that.col;
     }
 
 

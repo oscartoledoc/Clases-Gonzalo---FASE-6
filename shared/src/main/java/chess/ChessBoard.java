@@ -47,7 +47,7 @@ public class ChessBoard {
     public void resetBoard() {
         board = new ChessPiece[8][8];
 
-        for (int col = 1; col <= 8; col++){
+        for (int col = 1; col <= 8; col++) {
             addPiece(new ChessPosition(2, col), new ChessPiece(ChessGame.TeamColor.WHITE, ChessPiece.PieceType.PAWN));
             addPiece(new ChessPosition(7, col), new ChessPiece(ChessGame.TeamColor.BLACK, ChessPiece.PieceType.PAWN));
         }
@@ -68,14 +68,16 @@ public class ChessBoard {
         addPiece(new ChessPosition(8, 6), new ChessPiece(ChessGame.TeamColor.BLACK, ChessPiece.PieceType.BISHOP));
         addPiece(new ChessPosition(8, 7), new ChessPiece(ChessGame.TeamColor.BLACK, ChessPiece.PieceType.KNIGHT));
         addPiece(new ChessPosition(8, 8), new ChessPiece(ChessGame.TeamColor.BLACK, ChessPiece.PieceType.ROOK));
-
-
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         ChessBoard that = (ChessBoard) o;
 
@@ -83,8 +85,12 @@ public class ChessBoard {
             for (int col = 0; col < 8; col++) {
                 ChessPiece thisPiece = board[row][col];
                 ChessPiece thatPiece = that.board[row][col];
-                if (thisPiece == null && thatPiece == null) continue;
-                if (thisPiece == null || !thisPiece.equals(thatPiece)) return false;
+                if (thisPiece == null && thatPiece == null) {
+                    continue;
+                }
+                if (thisPiece == null || !thisPiece.equals(thatPiece)) {
+                    return false;
+                }
             }
         }
         return true;

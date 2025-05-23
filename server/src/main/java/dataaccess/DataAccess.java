@@ -1,12 +1,8 @@
 package dataaccess;
 
-import chess.ChessGame;
 import model.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
-public interface dataAccess {
+public interface DataAccess {
     UserData getUser(String username) throws DataAccessException;
     void createUser(UserData user) throws DataAccessException;
     AuthData getAuth(String authToken) throws DataAccessException;
