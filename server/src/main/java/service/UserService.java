@@ -35,5 +35,10 @@ public class UserService {
         return new RegisterResult(username, authToken);
     }
 
+    public void clear() throws DataAccessException {
+        dataaccess.deleteAllUsers();
+        dataaccess.deleteAllAuth();
+    }
+
 
 }
