@@ -157,6 +157,7 @@ public class MySQLDataAccess implements DataAccess {
                 ChessGame game = gameJson != null ? gson.fromJson(gameJson, ChessGame.class) : null;
                 games.add(new GameData(rs.getInt("gameID"), rs.getString("whiteUsername"), rs.getString("blackUsername"), rs.getString("gameName"), game));
             }
+            System.out.println("Juegos Recuperados: " + games.size());
             return games.toArray(new GameData[0]);
         } catch (SQLException e){
             throw new DataAccessException("failed to get all games " + e.getMessage());
