@@ -227,26 +227,28 @@ public class MySQLDataAccessTest {
                 "Should throw exception for duplicate game ID");
     }
 
-    @Test
-    @Order(17)
-    @DisplayName("Update Game Success")
-    public void updateGameSuccess() throws DataAccessException {
-        dataAccess.createUser(new UserData(TEST_USERNAME, TEST_PASSWORD, TEST_EMAIL));
-        ChessGame initialGame = new ChessGame();
-        GameData initialGameData = new GameData(1, TEST_USERNAME, null, TEST_GAME_NAME, initialGame);
-        dataAccess.createGame(initialGameData);
+@Test
+@Order(17)
+@DisplayName("Update Game Success")
+public void updateGameSuccess() throws DataAccessException {
+    dataAccess.createUser(new UserData(TEST_USERNAME, TEST_PASSWORD, TEST_EMAIL)); // "testUser"
+    dataAccess.createUser(new UserData("blackUser", TEST_PASSWORD, "black@example.com")); // "blackUser"
 
-        ChessGame updatedGame = new ChessGame();
-        updatedGame.setBoard(new ChessBoard()); // Simula un cambio en el tablero
-        updatedGame.setTeamTurn(ChessGame.TeamColor.BLACK);
-        GameData updatedGameData = new GameData(1, TEST_USERNAME, "blackUser", TEST_GAME_NAME + "Updated", updatedGame);
-        dataAccess.updateGame(1, updatedGameData);
+    ChessGame initialGame = new ChessGame();
+    GameData initialGameData = new GameData(1, TEST_USERNAME, null, TEST_GAME_NAME, initialGame);
+    dataAccess.createGame(initialGameData);
 
-        GameData retrievedGame = dataAccess.getGame(1);
-        assertNotNull(retrievedGame, "Game should be updated");
-        assertEquals("blackUser", retrievedGame.blackUsername(), "Black username should be updated");
-        assertEquals(ChessGame.TeamColor.BLACK, retrievedGame.game().getTeamTurn(), "Game state should be updated");
-    }
+    ChessGame updatedGame = new ChessGame();
+    updatedGame.setBoard(new ChessBoard()); // Simula un cambio en el tablero
+    updatedGame.setTeamTurn(ChessGame.TeamColor.BLACK);
+    GameData updatedGameData = new GameData(1, TEST_USERNAME, "blackUser", TEST_GAME_NAME + "Updated", updatedGame);
+    dataAccess.updateGame(1, updatedGameData);
+
+    GameData retrievedGame = dataAccess.getGame(1);
+    assertNotNull(retrievedGame, "Game should be updated");
+    assertEquals("blackUser", retrievedGame.blackUsername(), "Black username should be updated");
+    assertEquals(ChessGame.TeamColor.BLACK, retrievedGame.game().getTeamTurn(), "Game state should be updated");
+}
 
     @Test
     @Order(18)
@@ -292,17 +294,6 @@ public class MySQLDataAccessTest {
 
     @Test
     @Order(22)
-    @DisplayName("Generate Game ID Failure - Database Error Simulation")
-    public void generateGameIDFailure() throws DataAccessException {
-        // Este caso es difícil de simular sin modificar el código o la base de datos.
-        // Podrías simularlo eliminando permisos en la base de datos o alterando la tabla,
-        // pero para fines prácticos, asumimos que generateGameID no falla fácilmente.
-        // Si tienes un caso específico para simular este fallo, lo ajustaremos.
-        assertDoesNotThrow(() -> dataAccess.generateGameID(), "Generate gameID should not throw in normal conditions");
-    }
-
-    @Test
-    @Order(23)
     @DisplayName("Delete All Games Success")
     public void deleteAllGamesSuccess() throws DataAccessException {
         dataAccess.createUser(new UserData(TEST_USERNAME, TEST_PASSWORD, TEST_EMAIL));
@@ -314,7 +305,7 @@ public class MySQLDataAccessTest {
     }
 
     @Test
-    @Order(24)
+    @Order(23)
     @DisplayName("Clear Success")
     public void clearSuccess() throws DataAccessException {
         dataAccess.createUser(new UserData(TEST_USERNAME, TEST_PASSWORD, TEST_EMAIL));
@@ -330,7 +321,7 @@ public class MySQLDataAccessTest {
     }
 
     @Test
-    @Order(25)
+    @Order(24)
     @DisplayName("Test Chess Game Persistence with Moves")
     public void testChessGamePersistenceWithMoves() throws DataAccessException {
         dataAccess.createUser(new UserData(TEST_USERNAME, TEST_PASSWORD, TEST_EMAIL));

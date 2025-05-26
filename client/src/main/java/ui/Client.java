@@ -76,25 +76,25 @@ public class Client {
         }
     }
 
-    private void handleCommand(String command, Scanner scanner) {
-        switch (command) {
-            case "help":
-                displayHelp();
-                break;
-            case "quit":
-                isRunning = false;
-                System.out.println("Goodbye!");
-                break;
-            case "login":
-                handleLogin(scanner);
-                break;
-            case "register":
-                handleRegister(scanner);
-                break;
-                default:
-                   System.out.println("Invalid command, type Help for a list of commands");
-        }
-    }
+    // private void handleCommand(String command, Scanner scanner) {
+    //     switch (command) {
+    //         case "help":
+    //             displayHelp();
+    //             break;
+    //         case "quit":
+    //             isRunning = false;
+    //             System.out.println("Goodbye!");
+    //             break;
+    //         case "login":
+    //             handleLogin(scanner);
+    //             break;
+    //         case "register":
+    //             handleRegister(scanner);
+    //             break;
+    //             default:
+    //                System.out.println("Invalid command, type Help for a list of commands");
+    //     }
+    // }
 
 
     private void displayHelp() {
