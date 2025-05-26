@@ -7,6 +7,10 @@ import ui.ServerFacade;
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
+<<<<<<< HEAD
+=======
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+>>>>>>> 05d23bd70abf52efa187a1bffe2f2bcb6e48cfc5
 
 /**
  * Esta clase contiene pruebas unitarias para la clase ServerFacade, verificando las funcionalidades

@@ -11,6 +11,7 @@ import com.mysql.cj.x.protobuf.MysqlxCrud;
 import model.AuthData;
 import model.GameData;
 import model.UserData;
+import org.junit.jupiter.api.Test;
 import org.mindrot.jbcrypt.BCrypt;
 >>>>>>> 64a2b808d2159e88c96b577d82df4a6923ac4796
 
@@ -88,7 +89,7 @@ public class MySQLDataAccess implements DataAccess {
             stmt.setString(1, authToken);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                return new AuthData(rs.getString("authToken"), rs.getString("username"));
+                return new AuthData(rs.getString("username"), rs.getString("authToken"));
             }
             return null;
         } catch (SQLException e) {
@@ -153,14 +154,22 @@ public class MySQLDataAccess implements DataAccess {
 
     @Override
     public void updateGame(int gameID, GameData game) throws DataAccessException {
+<<<<<<< HEAD
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement("UPDATE games SET whiteUsername = ?, blackUsername = ?, gameName = ?, game = ? WHERE gameID = ?")) {
+=======
+        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement("UPDATE games SET whiteUsername = ?, blackUsername = ?, gameName = ?, game = ? WHERE gameID = ?")) {
+>>>>>>> 05d23bd70abf52efa187a1bffe2f2bcb6e48cfc5
             stmt.setString(1, game.whiteUsername());
             stmt.setString(2, game.blackUsername());
             stmt.setString(3, game.gameName());
             stmt.setString(4, game.game() != null ? gson.toJson(game.game()) : null);
             stmt.setInt(5, gameID);
-            stmt.executeUpdate();
+            int rowAffected = stmt.executeUpdate();;
+            if (rowAffected == 0) {
+                throw new DataAccessException("failed to update game");
+            }
+
         } catch (SQLException e) {
             throw new DataAccessException("Error updating game: " + e.getMessage());
         }
@@ -177,17 +186,33 @@ public class MySQLDataAccess implements DataAccess {
                 ChessGame game = gameJson != null ? gson.fromJson(gameJson, ChessGame.class) : null;
                 games.add(new GameData(rs.getInt("gameID"), rs.getString("whiteUsername"), rs.getString("blackUsername"), rs.getString("gameName"), game));
             }
-            System.out.println("Juegos Recuperados: " + games.size());
             return games.toArray(new GameData[0]);
         } catch (SQLException e) {
             throw new DataAccessException("Error getting all games: " + e.getMessage());
         }
     }
 
+//    @Override
+//    public int listGames() throws DataAccessException{
+//        int count = 0;
+//        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement("SELECT COUNT(*) FROM games")){
+//            ResultSet rs = stmt.executeQuery();
+//            if (rs.next()){
+//                count = rs.getInt(1);
+//            }
+//            return count;
+//        } catch (SQLException e){}
+//    }
+
     @Override
+<<<<<<< HEAD
     public int generateGameID() throws DataAccessException {
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement("INSERT INTO games (gameName) VALUES ('temp'); SELECT LAST_INSERT_ID() AS gameID")) {
+=======
+    public int generateGameID() throws DataAccessException{
+        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement("INSERT INTO games (gameName) VALUES (?)", Statement .RETURN_GENERATED_KEYS)) {
+>>>>>>> 05d23bd70abf52efa187a1bffe2f2bcb6e48cfc5
             stmt.setString(1, "temp");
             stmt.executeUpdate();
 <<<<<<< HEAD
