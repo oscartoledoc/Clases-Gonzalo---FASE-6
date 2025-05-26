@@ -138,7 +138,13 @@ public class ServerFacade {
         data.put("username", username);
         data.put("password", password);
         String response = sendPostRequest("/session", data);
-        authToken = ExtractAuthToken(response);
+        System.out.println("Login response from server: " + response);
+        if (response.contains("\"authToken\"")) {
+            this.authToken = ExtractAuthToken(response);
+            System.out.println("Extracted authToken: " + this.authToken);
+        } else {
+            throw new IOException("No authToken found in login response: " + response);
+        }
         return response;
     }
 
@@ -169,6 +175,26 @@ public class ServerFacade {
         start += "\"authToken\":\"".length();
         int end = response.indexOf("\"", start);
         return response.substring(start, end);
+    }
+
+    public void clearServerState() throws IOException {
+        URL url = new URL(serverURL + "/clear");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setDoOutput(true);
+
+        try (OutputStream os = conn.getOutputStream()) {
+            byte[] input = "{}".getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+
+        int responseCode = conn.getResponseCode();
+        if (responseCode != 200) {
+            throw new IOException("Failed to clear server state, response code: " + responseCode);
+        }
+
+        conn.disconnect();
     }
 
 
