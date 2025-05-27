@@ -2,6 +2,7 @@ package server;
 
 import dataaccess.DataAccessException;
 import dataaccess.DataAccess;
+import dataaccess.MySQLDataAccess;
 import model.AuthData;
 import model.GameData;
 import model.UserData;
@@ -9,7 +10,6 @@ import service.*;
 import com.google.gson.Gson;
 import spark.*;
 import service.Results.*;
-import dataaccess.MySQLDataAccess;
 
 public class Server {
 
@@ -23,7 +23,7 @@ public class Server {
     public Server() {
         try {
             this.dataaccess = new MySQLDataAccess();
-        }catch (DataAccessException e){
+        } catch (DataAccessException e) {
             throw new RuntimeException("Unable to connect to database", e);
         }
         this.userService = new UserService(dataaccess);
@@ -41,7 +41,7 @@ public class Server {
         // Register your endpoints and handle exceptions here.
         registerEndpoints();
 
-        //This line initializes the server and can be removed once you have a functioning endpoint 
+        // This line initializes the server and can be removed once you have a functioning endpoint
         Spark.init();
 
         Spark.awaitInitialization();
@@ -69,23 +69,23 @@ public class Server {
             }
         });
         Spark.post("/session", (req, res) -> {
-           try {
-               LoginRequest request = gson.fromJson(req.body(), LoginRequest.class);
-               if (request == null || request.username == null || request.password == null) {
-                   res.status(400);
-                   return gson.toJson(new ErrorResponse("Error: Bad Request"));
-               }
-               RegisterResult result = userService.login(request.username, request.password);
-               res.status(200);
-               return gson.toJson(result);
-           } catch (DataAccessException e) {
+            try {
+                LoginRequest request = gson.fromJson(req.body(), LoginRequest.class);
+                if (request == null || request.username == null || request.password == null) {
+                    res.status(400);
+                    return gson.toJson(new ErrorResponse("Error: Bad Request"));
+                }
+                RegisterResult result = userService.login(request.username, request.password);
+                res.status(200);
+                return gson.toJson(result);
+            } catch (DataAccessException e) {
                 if (e.getMessage().equals("Invalid Credentials")) {
                     res.status(401);
                     return gson.toJson(new ErrorResponse("Error: Unauthorized"));
                 }
                 res.status(500);
                 return gson.toJson(new ErrorResponse("Error: " + e.getMessage()));
-           }
+            }
         });
         Spark.delete("/session", (req, res) -> {
             String authToken = req.headers("Authorization");
@@ -94,7 +94,7 @@ public class Server {
                 return gson.toJson(new ErrorResponse("Error: Unauthorized"));
             }
             try {
-                if (dataaccess.getAuth(authToken) == null){
+                if (dataaccess.getAuth(authToken) == null) {
                     res.status(401);
                     return gson.toJson(new ErrorResponse("Error: Unauthorized"));
                 }
@@ -142,7 +142,7 @@ public class Server {
                     res.status(401);
                     return gson.toJson(new ErrorResponse("Error: Unauthorized"));
                 }
-                if (req.body() == null || req.body().trim().isEmpty()){
+                if (req.body() == null || req.body().trim().isEmpty()) {
                     res.status(401);
                     return gson.toJson(new ErrorResponse("Error: Unauthorized"));
                 }
@@ -173,14 +173,14 @@ public class Server {
                 return gson.toJson(new ErrorResponse("Error: Unauthorized"));
             }
             try {
-               JoinGameRequest request = gson.fromJson(req.body(), JoinGameRequest.class);
-               if (request == null || request.gameID == null || request.playerColor == null) {
-                   res.status(400);
-                   return gson.toJson(new ErrorResponse("Error: Bad request"));
-               }
-               JoinGameResult result = gameService.joinGame(authToken, request.gameID, request.playerColor);
-               res.status(200);
-               return gson.toJson(new EmptyResponse());
+                JoinGameRequest request = gson.fromJson(req.body(), JoinGameRequest.class);
+                if (request == null || request.gameID == null || request.playerColor == null) {
+                    res.status(400);
+                    return gson.toJson(new ErrorResponse("Error: Bad request"));
+                }
+                JoinGameResult result = gameService.joinGame(authToken, request.gameID, request.playerColor);
+                res.status(200);
+                return gson.toJson(new EmptyResponse());
             } catch (DataAccessException e) {
                 if (e.getMessage().equals("Unauthorized")) {
                     res.status(401);
@@ -190,8 +190,18 @@ public class Server {
                     return gson.toJson(new ErrorResponse("Error: Bad request"));
                 } else if (e.getMessage().equals("Player already joined")) {
                     res.status(403);
-                    return  gson.toJson(new ErrorResponse("Error: Player already joined"));
+                    return gson.toJson(new ErrorResponse("Error: Player already joined"));
                 }
+                res.status(500);
+                return gson.toJson(new ErrorResponse("Error: " + e.getMessage()));
+            }
+        });
+        Spark.post("/clear", (req, res) -> {
+            try {
+                Result result = clearService.clear();
+                res.status(200);
+                return gson.toJson(new EmptyResponse());
+            } catch (DataAccessException e) {
                 res.status(500);
                 return gson.toJson(new ErrorResponse("Error: " + e.getMessage()));
             }
@@ -213,7 +223,6 @@ public class Server {
         Spark.awaitStop();
     }
 
-
     private record RegisterRequest(String username, String password, String email) {}
 
     private record LoginRequest(String username, String password) {}
@@ -227,7 +236,4 @@ public class Server {
     private record ErrorResponse(String message) {}
 
     private record EmptyResponse() {}
-
-
-
 }

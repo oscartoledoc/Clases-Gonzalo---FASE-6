@@ -3,6 +3,7 @@ import dataaccess.DataAccessException;
 import dataaccess.DataAccess;
 import model.*;
 
+import org.mindrot.jbcrypt.BCrypt;
 import service.Results.*;
 import java.util.UUID;
 
@@ -27,7 +28,7 @@ public class UserService {
 
     public RegisterResult login(String username, String password) throws DataAccessException{
         UserData user = dataaccess.getUser(username);
-        if (user == null || !user.password().equals(password)) {
+        if (user == null || !BCrypt.checkpw(password, user.password())) {
             throw new DataAccessException("Invalid Credentials");
         }
         String authToken = UUID.randomUUID().toString();
