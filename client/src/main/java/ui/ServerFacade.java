@@ -128,8 +128,8 @@ public class ServerFacade {
         data.put("username", username);
         data.put("password", password);
         data.put("email", email);
-        String response = sendPostRequest("/user", data);
-        authToken = ExtractAuthToken(response);
+        String response = sendPostRequest("/session", data);
+        this.authToken = ExtractAuthToken(response);
         return response;
     }
 
@@ -139,12 +139,7 @@ public class ServerFacade {
         data.put("password", password);
         String response = sendPostRequest("/session", data);
         System.out.println("Login response from server: " + response);
-        if (response.contains("\"authToken\"")) {
-            this.authToken = ExtractAuthToken(response);
-            System.out.println("Extracted authToken: " + this.authToken);
-        } else {
-            throw new IOException("No authToken found in login response: " + response);
-        }
+        this.authToken = ExtractAuthToken(response);
         return response;
     }
 
@@ -161,7 +156,7 @@ public class ServerFacade {
     public String createGame(String gameName) throws IOException {
         Map<String, String> data = new HashMap<>();
         data.put("gameName", gameName);
-        return sendPostRequest("/game", data);
+        return sendPostRequestWithAuth("/game", data);
     }
     public String joinGame(String gameId, String playerColor) throws IOException {
         Map<String, String> data = new HashMap<>();
@@ -171,9 +166,14 @@ public class ServerFacade {
     }
 
     private String ExtractAuthToken(String response) {
-        int start = response.indexOf("\"authToken\":\"");
-        start += "\"authToken\":\"".length();
+        if (response == null || !response.contains("\"authToken\"")) {
+            throw new IllegalArgumentException("Invalid response from server: " + response);
+        }
+        int start = response.indexOf("\"authToken\":\"") + 12;
         int end = response.indexOf("\"", start);
+        if (start == -1 || end == -1 || start >= end) {
+            throw new IllegalArgumentException("Invalid response from server: " + response);
+        }
         return response.substring(start, end);
     }
 
@@ -195,6 +195,23 @@ public class ServerFacade {
         }
 
         conn.disconnect();
+    }
+
+    private String sendPostRequestWithAuth(String endpoint, Map<String, String>data) throws IOException{
+        URL url = new URL(serverURL + endpoint);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        if (authToken != null) {
+            conn.setRequestProperty("Authorization", authToken);
+        }
+        conn.setDoOutput(true);
+        String jsonInputString = mapToJson(data);
+        try (OutputStream os = conn.getOutputStream()){
+            byte[] input = jsonInputString.getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        return handleResponse(conn);
     }
 
 

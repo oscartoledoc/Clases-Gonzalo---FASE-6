@@ -171,16 +171,9 @@ public class ServerFacadeTests {
         if (!response.contains("\"gameID\"")) {
             throw new IllegalArgumentException("No gameID found in response: " + response);
         }
-        try {
-            int start = response.indexOf("\"gameID\":\"") + 9;
-            int end = response.indexOf("\"", start);
-            if (start == -1 || end == -1 || start >= end) {
-                throw new IllegalArgumentException("Invalid gameID format in response: " + response);
-            }
-            return response.substring(start, end);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to extract gameID from response: " + response, e);
-        }
+        int start = response.indexOf("\"gameID\"") + 9;
+        int end = response.indexOf("\"", start);
+        return response.substring(start, end);
     }
 
     @Test
@@ -198,19 +191,25 @@ public class ServerFacadeTests {
             System.err.println("Login failed: " + e.getMessage());
             fail("Login should succeed but threw an exception: " + e.getMessage());
         }
-        String createGameResponse;
+        String createGameResponse = null;
         try {
             createGameResponse = serverFacade.createGame("TestGame");
             System.out.println("Create game response: " + createGameResponse);
-            String gameId = extractGameId(createGameResponse);
-            String response = serverFacade.joinGame(gameId, "WHITE");
-            assertNotNull(response, "La respuesta de unión a juego no debe ser nula");
-            assertTrue(response.contains("Joined"), "La respuesta debe indicar unión exitosa");
-            System.out.println("Join game response: " + response);
+        } catch (IOException e){
+            System.err.println("Create game failed: " + e.getMessage());
+            fail("Create game should succeed but threw an exception: " + e.getMessage());
+        }
+        String gameId = extractGameId(createGameResponse);
+        String joinResponse;
+        try {
+            joinResponse = serverFacade.joinGame(gameId, "white");
+            System.out.println("Join Game Response: " + joinResponse);
         } catch (IOException e) {
             System.err.println("Create game failed: " + e.getMessage());
             fail("Create game should succeed but threw an exception: " + e.getMessage());
         }
+        assertNotNull(joinResponse, "joinResponse no debe ser null");
+        assertTrue(joinResponse.contains("Joined"), "The answer should be Success");
     }
 
     /**
