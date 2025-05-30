@@ -66,7 +66,7 @@ public class ServerFacade {
     public String joinGame(String gameId, String playerColor) throws IOException {
         Map<String, String> data = new HashMap<>();
         data.put("gameId", gameId);
-        data.put("playerColor", playerColor);
+        data.put("playerColor", playerColor.toLowerCase());
         return sendPutRequest("/game", data);
     }
 

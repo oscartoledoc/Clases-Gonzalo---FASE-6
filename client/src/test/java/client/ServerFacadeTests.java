@@ -203,10 +203,10 @@ public class ServerFacadeTests {
             System.err.println("Create game failed: " + e.getMessage());
             fail("Create game should succeed but threw an exception: " + e.getMessage());
         }
-        String gameId = extractGameId(createGameResponse);
+        String gameID = extractGameId(createGameResponse);
         String joinResponse = null;
         try {
-            joinResponse = serverFacade.joinGame(gameId, "WHITE");
+            joinResponse = serverFacade.joinGame(gameID, "white");
             System.out.println("Join game response: " + joinResponse);
         } catch (IOException e) {
             System.err.println("Join game failed: " + e.getMessage());
