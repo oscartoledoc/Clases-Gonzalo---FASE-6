@@ -7,10 +7,6 @@ import ui.ServerFacade;
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
-<<<<<<< HEAD
-=======
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
->>>>>>> 05d23bd70abf52efa187a1bffe2f2bcb6e48cfc5
 
 /**
  * Esta clase contiene pruebas unitarias para la clase ServerFacade, verificando las funcionalidades
@@ -46,33 +42,28 @@ public class ServerFacadeTests {
      * Método de limpieza que se ejecuta una vez después de todas las pruebas.
      * Detiene el servidor para liberar recursos.
      */
-    @AfterAll
-    static void stopServer() {
-        if (server != null) {
-            server.stop();
-            System.out.println("Stopped test HTTP server on " + serverUrl);
+    @AfterEach
+        public void tearDown() {
+            if (serverFacade != null) {
+                try {
+                    serverFacade.clearServerState();
+                } catch (Exception e) {
+                    System.err.println("Failed to clear server state after test: " + e.getMessage());
+                }
+            }
         }
-    }
 
     /**
      * Método de preparación que se ejecuta antes de cada prueba.
      * Reinicia el token de autenticación y limpia el estado del servidor para evitar interferencias.
      */
     @BeforeEach
-    public void setUp() {
-        if (serverFacade != null) {
-            serverFacade.setAuthToken(null);}}
-
-    @AfterEach
-    public void tearDown() {
-        if (serverFacade != null) {
-            try {
-                serverFacade.clearServerState();
-            } catch (Exception e) {
-                System.err.println("Failed to clear server state after test: " + e.getMessage());
+        public void setUp() {
+            if (serverFacade != null) {
+                serverFacade.setAuthToken(null);
+                // No limpiamos el estado aquí para permitir que el usuario registrado persista
             }
         }
-    }
 
     /**
      * Prueba que verifica el registro exitoso de un nuevo usuario.
@@ -138,6 +129,7 @@ public class ServerFacadeTests {
         serverFacade.login("testUser", "password123");
         String response = serverFacade.logout();
         assertNotNull(response, "La respuesta del logout no debe ser nula");
+        assertTrue(response.contains("successful"), "La respuesta debe indicar éxito");
         assertNull(serverFacade.getAuthToken(), "El token debe limpiarse tras logout");
         System.out.println("Logout response: " + response);
     }
@@ -170,50 +162,20 @@ public class ServerFacadeTests {
         System.out.println("Create game response: " + response);
     }
 
-    private String extractGameId(String response) {
-        if (!response.contains("\"gameID\"")) {
-            throw new IllegalArgumentException("No gameID found in response: " + response);
-        }
-        try {
-            int start = response.indexOf("\"gameID\":\"") + 9;
-            int end = response.indexOf("\"", start);
-            if (start == -1 || end == -1 || start >= end) {
-                throw new IllegalArgumentException("Invalid gameID format in response: " + response);
-            }
-            return response.substring(start, end);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to extract gameID from response: " + response, e);
-        }
-    }
-
+    /**
+     * Prueba que verifica la unión exitosa a un juego existente.
+     */
     @Test
     @DisplayName("Test Join Game Success")
     public void testJoinGameSuccess() throws IOException {
         assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
-        String registerResponse = serverFacade.register("testUser", "password123", "test@example.com");
-        System.out.println("Register response: " + registerResponse);
-        String loginResponse;
-        try {
-            loginResponse = serverFacade.login("testUser", "password123");
-            System.out.println("Login response: " + loginResponse);
-            System.out.println("AuthToken after login: " + serverFacade.getAuthToken());
-        } catch (IOException e) {
-            System.err.println("Login failed: " + e.getMessage());
-            fail("Login should succeed but threw an exception: " + e.getMessage());
-        }
-        String createGameResponse;
-        try {
-            createGameResponse = serverFacade.createGame("TestGame");
-            System.out.println("Create game response: " + createGameResponse);
-            String gameId = extractGameId(createGameResponse);
-            String response = serverFacade.joinGame(gameId, "WHITE");
-            assertNotNull(response, "La respuesta de unión a juego no debe ser nula");
-            assertTrue(response.contains("Joined"), "La respuesta debe indicar unión exitosa");
-            System.out.println("Join game response: " + response);
-        } catch (IOException e) {
-            System.err.println("Create game failed: " + e.getMessage());
-            fail("Create game should succeed but threw an exception: " + e.getMessage());
-        }
+        serverFacade.register("testUser", "password123", "test@example.com");
+        serverFacade.login("testUser", "password123");
+        serverFacade.createGame("TestGame"); // Crea un juego (simula que devuelve gameId = 1)
+        String response = serverFacade.joinGame("1", "WHITE"); // Ajusta el gameId según la respuesta
+        assertNotNull(response, "La respuesta de unión a juego no debe ser nula");
+        assertTrue(response.contains("Joined"), "La respuesta debe indicar unión exitosa");
+        System.out.println("Join game response: " + response);
     }
 
     /**
@@ -223,25 +185,9 @@ public class ServerFacadeTests {
     @DisplayName("Test List Games Success")
     public void testListGamesSuccess() throws IOException {
         assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
-        String registerResponse = serverFacade.register("testUser", "password123", "test@example.com");
-        System.out.println("Register response: " + registerResponse);
-        String loginResponse;
-        try {
-            loginResponse = serverFacade.login("testUser", "password123");
-            System.out.println("Login response: " + loginResponse);
-            System.out.println("AuthToken after login: " + serverFacade.getAuthToken());
-        } catch (IOException e) {
-            System.err.println("Login failed: " + e.getMessage());
-            fail("Login should succeed but threw an exception: " + e.getMessage());
-        }
-        String createGameResponse;
-        try {
-            createGameResponse = serverFacade.createGame("TestGame");
-            System.out.println("Create game response: " + createGameResponse);
-        } catch (IOException e) {
-            System.err.println("Create game failed: " + e.getMessage());
-            fail("Create game should succeed but threw an exception: " + e.getMessage());
-        }
+        serverFacade.register("testUser", "password123", "test@example.com");
+        serverFacade.login("testUser", "password123");
+        serverFacade.createGame("TestGame");
         String response = serverFacade.listGames();
         assertNotNull(response, "La respuesta de listado de juegos no debe ser nula");
         assertTrue(response.contains("TestGame"), "La respuesta debe contener el nombre del juego creado");

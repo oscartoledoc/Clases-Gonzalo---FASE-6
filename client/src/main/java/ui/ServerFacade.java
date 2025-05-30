@@ -18,6 +18,59 @@ public class ServerFacade {
         this.authToken = null;
     }
 
+private String extractGameId(String response) {
+        if (!response.contains("\"gameID\"")) {
+            throw new IllegalArgumentException("No gameID found in response: " + response);
+        }
+        try {
+            int start = response.indexOf("\"gameID\":\"") + 9;
+            int end = response.indexOf("\"", start);
+            if (start == -1 || end == -1 || start >= end) {
+                throw new IllegalArgumentException("Invalid gameID format in response: " + response);
+            }
+            return response.substring(start, end);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to extract gameID from response: " + response, e);
+        }
+    }
+
+    @Test
+    @DisplayName("Test Join Game Success")
+    public void testJoinGameSuccess() throws IOException {
+        assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
+        String registerResponse = serverFacade.register("testUser", "password123", "test@example.com");
+        System.out.println("Register response: " + registerResponse);
+        String loginResponse;
+        try {
+            loginResponse = serverFacade.login("testUser", "password123");
+            System.out.println("Login response: " + loginResponse);
+            System.out.println("AuthToken after login: " + serverFacade.getAuthToken());
+        } catch (IOException e) {
+            System.err.println("Login failed: " + e.getMessage());
+            fail("Login should succeed but threw an exception: " + e.getMessage());
+        }
+        String createGameResponse;
+        try {
+            createGameResponse = serverFacade.createGame("TestGame");
+            System.out.println("Create game response: " + createGameResponse);
+        } catch (IOException e) {
+            System.err.println("Create game failed: " + e.getMessage());
+            fail("Create game should succeed but threw an exception: " + e.getMessage());
+        }
+        String gameId = extractGameId(createGameResponse);
+        String response = serverFacade.joinGame(gameId, "WHITE");
+        assertNotNull(response, "La respuesta de unión a juego no debe ser nula");
+        assertTrue(response.contains("Joined"), "La respuesta debe indicar unión exitosa");
+        System.out.println("Join game response: " + response);
+    }
+
+
+
+
+
+
+
+
     public String getAuthToken() {
         return authToken;
     }
@@ -138,13 +191,7 @@ public class ServerFacade {
         data.put("username", username);
         data.put("password", password);
         String response = sendPostRequest("/session", data);
-        System.out.println("Login response from server: " + response);
-        if (response.contains("\"authToken\"")) {
-            this.authToken = ExtractAuthToken(response);
-            System.out.println("Extracted authToken: " + this.authToken);
-        } else {
-            throw new IOException("No authToken found in login response: " + response);
-        }
+        authToken = ExtractAuthToken(response);
         return response;
     }
 
@@ -175,26 +222,6 @@ public class ServerFacade {
         start += "\"authToken\":\"".length();
         int end = response.indexOf("\"", start);
         return response.substring(start, end);
-    }
-
-    public void clearServerState() throws IOException {
-        URL url = new URL(serverURL + "/clear");
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setDoOutput(true);
-
-        try (OutputStream os = conn.getOutputStream()) {
-            byte[] input = "{}".getBytes("utf-8");
-            os.write(input, 0, input.length);
-        }
-
-        int responseCode = conn.getResponseCode();
-        if (responseCode != 200) {
-            throw new IOException("Failed to clear server state, response code: " + responseCode);
-        }
-
-        conn.disconnect();
     }
 
 

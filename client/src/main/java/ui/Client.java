@@ -89,7 +89,6 @@ public class Client {
         }
     }
 
-<<<<<<< HEAD
     // private void handleCommand(String command, Scanner scanner) {
     //     switch (command) {
     //         case "help":
@@ -111,8 +110,6 @@ public class Client {
     // }
 
 
-=======
->>>>>>> 05d23bd70abf52efa187a1bffe2f2bcb6e48cfc5
     private void displayHelp() {
         System.out.println("Available commands: ");
         System.out.println("Help - Displays this help message");
