@@ -198,7 +198,6 @@ public class ServerFacadeTests {
     @DisplayName("Test Join Game Success")
     public void testJoinGameSuccess() throws IOException {
         assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
-<<<<<<< HEAD
         serverFacade.register("testUser", "password123", "test@example.com");
         serverFacade.login("testUser", "password123");
         serverFacade.createGame("TestGame"); // Crea un juego (simula que devuelve gameId = 1)
@@ -206,39 +205,6 @@ public class ServerFacadeTests {
         assertNotNull(response, "La respuesta de unión a juego no debe ser nula");
         assertTrue(response.contains("Joined"), "La respuesta debe indicar unión exitosa");
         System.out.println("Join game response: " + response);
-=======
-        String registerResponse = serverFacade.register("testUser", "password123", "test@example.com");
-        System.out.println("Register response: " + registerResponse);
-        String loginResponse;
-        try {
-            loginResponse = serverFacade.login("testUser", "password123");
-            System.out.println("Login response: " + loginResponse);
-        } catch (IOException e) {
-            System.err.println("Login failed: " + e.getMessage());
-            fail("Login should succeed but threw an exception: " + e.getMessage());
-        }
-        String createGameResponse = null; // Inicialización para evitar error
-        try {
-            createGameResponse = serverFacade.createGame("TestGame");
-            System.out.println("Create game response: " + createGameResponse);
-        } catch (IOException e) {
-            System.err.println("Create game failed: " + e.getMessage());
-            fail("Create game should succeed but threw an exception: " + e.getMessage());
-        }
-        String gameID = extractGameId(createGameResponse);
-        String joinResponse = null;
-        try {
-            joinResponse = serverFacade.joinGame(gameID, "white");
-            System.out.println("Join game response: " + joinResponse);
-        } catch (IOException e) {
-            System.err.println("Join game failed: " + e.getMessage());
-            fail("Join game should succeed but threw an exception: " + e.getMessage());
-        }
-        JsonObject jsonResponse = gson.fromJson(joinResponse, JsonObject.class);
-        assertNotNull(joinResponse, "La respuesta de unión a juego no debe ser nula");
-        assertTrue(jsonResponse.has("message") && jsonResponse.get("message").getAsString().contains("Joined"),
-                "La respuesta debe indicar unión exitosa");
->>>>>>> 76fcd859700d055309638101fa27d7927e906e44
     }
 
     /**
