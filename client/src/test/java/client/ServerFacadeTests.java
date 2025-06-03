@@ -62,30 +62,10 @@ public class ServerFacadeTests {
      * Reinicia el token de autenticación y limpia el estado del servidor para evitar interferencias.
      */
     @BeforeEach
-<<<<<<< HEAD
         public void setUp() {
             if (serverFacade != null) {
                 serverFacade.setAuthToken(null);
                 // No limpiamos el estado aquí para permitir que el usuario registrado persista
-=======
-    public void setUp() {
-        if (serverFacade != null) {
-            serverFacade.setAuthToken(null);
-        }
-    }
-
-    /**
-     * Método de limpieza que se ejecuta después de cada prueba.
-     * Limpia el estado del servidor para asegurar aislamiento entre pruebas.
-     */
-    @AfterEach
-    public void tearDown() {
-        if (serverFacade != null) {
-            try {
-                serverFacade.clearServerState();
-            } catch (Exception e) {
-                System.err.println("Failed to clear server state after test: " + e.getMessage());
->>>>>>> 76fcd859700d055309638101fa27d7927e906e44
             }
         }
 
@@ -152,14 +132,8 @@ public class ServerFacadeTests {
         serverFacade.register("testUser", "password123", "test@example.com");
         serverFacade.login("testUser", "password123");
         String response = serverFacade.logout();
-<<<<<<< HEAD
         assertNotNull(response, "La respuesta del logout no debe ser nula");
         assertTrue(response.contains("successful"), "La respuesta debe indicar éxito");
-=======
-        JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
-        assertTrue(jsonResponse.has("message") && jsonResponse.get("message").getAsString().contains("logged out"),
-                "La respuesta debe indicar éxito");
->>>>>>> 76fcd859700d055309638101fa27d7927e906e44
         assertNull(serverFacade.getAuthToken(), "El token debe limpiarse tras logout");
         System.out.println("Logout response: " + response);
     }
