@@ -44,11 +44,11 @@ public class Server {
 
         // This line initializes the server and can be removed once you have a functioning endpoint
         Spark.init();
-        try {
-            webSocketServer.start(8081);
-        } catch (Exception e) {
-            throw new RuntimeException("Unable to start WebSocket server", e);
-        }
+//        try {
+//            webSocketServer.start(8081);
+//        } catch (Exception e) {
+//            throw new RuntimeException("Unable to start WebSocket server", e);
+//        }
 
         Spark.awaitInitialization();
         return Spark.port();
@@ -227,7 +227,7 @@ public class Server {
     public void stop() {
         Spark.stop();
         Spark.awaitStop();
-        webSocketServer.stop();
+        //webSocketServer.stop();
     }
 
     private record RegisterRequest(String username, String password, String email) {}
