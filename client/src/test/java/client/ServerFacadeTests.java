@@ -8,33 +8,34 @@ import ui.ServerFacade;
 
 import java.io.IOException;
 
+<<<<<<< HEAD
 import static org.junit.jupiter.api.Assertions.*;
+=======
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
 
-/**
- * Esta clase contiene pruebas unitarias para la clase ServerFacade, verificando las funcionalidades
- * de registro, login, logout, creación de juegos, unión a juegos y listado de juegos. Utiliza un
- * servidor de prueba iniciado en un puerto dinámico antes de todas las pruebas.
- */
+
 public class ServerFacadeTests {
 
-    private static Server server; // Servidor de prueba que se ejecuta durante las pruebas
-    private static ServerFacade serverFacade; // Instancia de ServerFacade para las pruebas
-    private static String serverUrl; // URL dinámica basada en el puerto asignado
-    private static int port; // Puerto dinámico asignado al servidor
+    private static Server server;
+    private static ServerFacade serverFacade;
+    private static String serverUrl;
+    private static int port;
     private static Gson gson;
 
-    /**
-     * Método de inicialización que se ejecuta una vez antes de todas las pruebas.
-     * Inicia el servidor en un puerto dinámico y configura la instancia de ServerFacade con la URL generada.
-     */
     @BeforeAll
     public static void init() {
         server = new Server();
         try {
-            port = server.run(0); // Inicia el servidor en un puerto dinámico
-            serverUrl = "http://localhost:" + port; // Construye la URL con el puerto dinámico
+            port = server.run(0);
+            serverUrl = "http://localhost:" + port;
             System.out.println("Started test HTTP server on " + serverUrl);
-            serverFacade = new ServerFacade(serverUrl); // Configura la fachada con la URL dinámica
+            serverFacade = new ServerFacade(serverUrl);
             gson = new Gson();
         } catch (Exception e) {
             System.err.println("Failed to start server: " + e.getMessage());
@@ -42,6 +43,7 @@ public class ServerFacadeTests {
         }
     }
 
+<<<<<<< HEAD
     /**
      * Método de limpieza que se ejecuta una vez después de todas las pruebas.
      * Detiene el servidor para liberar recursos.
@@ -55,122 +57,145 @@ public class ServerFacadeTests {
                     System.err.println("Failed to clear server state after test: " + e.getMessage());
                 }
             }
+=======
+    @AfterAll
+    static void stopServer() {
+        if (server != null) {
+            server.stop();
+            System.out.println("Stopped test HTTP server on " + serverUrl);
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
         }
 
-    /**
-     * Método de preparación que se ejecuta antes de cada prueba.
-     * Reinicia el token de autenticación y limpia el estado del servidor para evitar interferencias.
-     */
+
     @BeforeEach
+<<<<<<< HEAD
         public void setUp() {
             if (serverFacade != null) {
                 serverFacade.setAuthToken(null);
                 // No limpiamos el estado aquí para permitir que el usuario registrado persista
+=======
+    public void setUp() {
+        if (serverFacade != null) {
+            serverFacade.setAuthToken(null);
+        }
+    }
+
+
+    @AfterEach
+    public void tearDown() {
+        if (serverFacade != null) {
+            try {
+                serverFacade.clearServerState();
+            } catch (Exception e) {
+                System.err.println("Failed to clear server state after test: " + e.getMessage());
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
             }
         }
 
-    /**
-     * Prueba que verifica el registro exitoso de un nuevo usuario.
-     */
     @Test
+    @Order(1)
     @DisplayName("Test Register Success")
     public void testRegisterSuccess() throws IOException {
-        assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
         String response = serverFacade.register("testUser", "password123", "test@example.com");
         JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
-        assertTrue(jsonResponse.has("authToken"), "La respuesta debe contener un token de autenticación");
-        assertNotNull(serverFacade.getAuthToken(), "Debe generarse un token de autenticación");
+        assertTrue(jsonResponse.has("authToken"), "The response must contain an authentication token");
+        assertNotNull(serverFacade.getAuthToken(), "An authentication token must be generated");
         System.out.println("Register response: " + response);
     }
 
-    /**
-     * Prueba que verifica el fallo al registrar un usuario existente.
-     */
     @Test
+    @Order(2)
     @DisplayName("Test Register Failure with Existing User")
     public void testRegisterFailure() throws IOException {
-        assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
         serverFacade.register("testUser", "password123", "test@example.com");
         assertThrows(IOException.class, () -> serverFacade.register("testUser", "password123", "test2@example.com"),
-                "Debe lanzar una excepción al registrar un usuario duplicado");
+                "An exception must be thrown when registering a duplicate user");
     }
 
-    /**
-     * Prueba que verifica el login exitoso con credenciales válidas.
-     */
     @Test
+    @Order(3)
     @DisplayName("Test Login Success")
     public void testLoginSuccess() throws IOException {
-        assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
         serverFacade.register("testUser", "password123", "test@example.com");
         String response = serverFacade.login("testUser", "password123");
         JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
-        assertTrue(jsonResponse.has("authToken"), "La respuesta debe contener un token de autenticación");
-        assertNotNull(serverFacade.getAuthToken(), "Debe generarse un token de autenticación");
+        assertTrue(jsonResponse.has("authToken"), "The response must contain an authentication token");
+        assertNotNull(serverFacade.getAuthToken(), "An authentication token must be generated");
         System.out.println("Login response: " + response);
     }
 
-    /**
-     * Prueba que verifica el fallo al login con credenciales inválidas.
-     */
     @Test
+    @Order(4)
     @DisplayName("Test Login Failure with Wrong Password")
     public void testLoginFailure() throws IOException {
-        assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
         serverFacade.register("testUser", "password123", "test@example.com");
         assertThrows(IOException.class, () -> serverFacade.login("testUser", "wrongPassword"),
-                "Debe lanzar una excepción con contraseña incorrecta");
+                "An exception must be thrown for incorrect password");
     }
 
-    /**
-     * Prueba que verifica el logout exitoso después de un login.
-     */
     @Test
+    @Order(5)
     @DisplayName("Test Logout Success")
     public void testLogoutSuccess() throws IOException {
-        assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
         serverFacade.register("testUser", "password123", "test@example.com");
         serverFacade.login("testUser", "password123");
         String response = serverFacade.logout();
+<<<<<<< HEAD
         assertNotNull(response, "La respuesta del logout no debe ser nula");
         assertTrue(response.contains("successful"), "La respuesta debe indicar éxito");
         assertNull(serverFacade.getAuthToken(), "El token debe limpiarse tras logout");
+=======
+        JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+        assertTrue(jsonResponse.has("message") && jsonResponse.get("message").getAsString().contains("logged out"),
+                "The response must indicate success");
+        assertNull(serverFacade.getAuthToken(), "The token must be cleared after logout");
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
         System.out.println("Logout response: " + response);
     }
 
-    /**
-     * Prueba que verifica el fallo al logout sin estar autenticado.
-     */
     @Test
+    @Order(6)
     @DisplayName("Test Logout Failure without Auth")
     public void testLogoutFailure() throws IOException {
-        assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
-        serverFacade.setAuthToken(null); // Asegura que no hay token
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
+        serverFacade.setAuthToken(null);
         assertThrows(IOException.class, () -> serverFacade.logout(),
-                "Debe lanzar una excepción al intentar logout sin autenticación");
+                "An exception must be thrown when attempting logout without authentication");
     }
 
-    /**
-     * Prueba que verifica la creación exitosa de un nuevo juego.
-     */
     @Test
+    @Order(7)
     @DisplayName("Test Create Game Success")
     public void testCreateGameSuccess() throws IOException {
-        assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
         serverFacade.register("testUser", "password123", "test@example.com");
         serverFacade.login("testUser", "password123");
         String response = serverFacade.createGame("TestGame");
         JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
-        assertTrue(jsonResponse.has("gameID"), "La respuesta debe contener el ID del juego");
+        assertTrue(jsonResponse.has("gameID"), "The response must contain the game ID");
         System.out.println("Create game response: " + response);
     }
 
-    /**
-     * Prueba que verifica la unión exitosa a un juego existente.
-     */
     @Test
+    @Order(8)
+    @DisplayName("Test Create Game Failure without Auth")
+    public void testCreateGameFailure() throws IOException {
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
+        serverFacade.setAuthToken(null);
+        assertThrows(IOException.class, () -> serverFacade.createGame("TestGame"),
+                "An exception must be thrown when creating games without authentication");
+    }
+
+    @Test
+    @Order(9)
     @DisplayName("Test Join Game Success")
     public void testJoinGameSuccess() throws IOException {
+<<<<<<< HEAD
         assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
         serverFacade.register("testUser", "password123", "test@example.com");
         serverFacade.login("testUser", "password123");
@@ -179,34 +204,73 @@ public class ServerFacadeTests {
         assertNotNull(response, "La respuesta de unión a juego no debe ser nula");
         assertTrue(response.contains("Joined"), "La respuesta debe indicar unión exitosa");
         System.out.println("Join game response: " + response);
+=======
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
+        String registerResponse = serverFacade.register("testUser", "password123", "test@example.com");
+        System.out.println("Register response: " + registerResponse);
+        String loginResponse;
+        try {
+            loginResponse = serverFacade.login("testUser", "password123");
+            System.out.println("Login response: " + loginResponse);
+        } catch (IOException e) {
+            System.err.println("Login failed: " + e.getMessage());
+            fail("Login should succeed but threw an exception: " + e.getMessage());
+        }
+        String createGameResponse = null;
+        try {
+            createGameResponse = serverFacade.createGame("TestGame");
+            System.out.println("Create game response: " + createGameResponse);
+        } catch (IOException e) {
+            System.err.println("Create game failed: " + e.getMessage());
+            fail("Create game should succeed but threw an exception: " + e.getMessage());
+        }
+        String gameID = extractGameId(createGameResponse);
+        String joinResponse = null;
+        try {
+            joinResponse = serverFacade.joinGame(gameID, "white");
+            System.out.println("Join game response: " + joinResponse);
+        } catch (IOException e) {
+            System.err.println("Join game failed: " + e.getMessage());
+            fail("Join game should succeed but threw an exception: " + e.getMessage());
+        }
+        JsonObject jsonResponse = gson.fromJson(joinResponse, JsonObject.class);
+        assertNotNull(joinResponse, "Join game response must not be null");
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
     }
 
-    /**
-     * Prueba que verifica el listado exitoso de juegos disponibles.
-     */
     @Test
+    @Order(10)
+    @DisplayName("Test Join Game Failure with Invalid Game")
+    public void testJoinGameFailure() throws IOException {
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
+        serverFacade.register("testUser", "password123", "test@example.com");
+        serverFacade.login("testUser", "password123");
+        assertThrows(IOException.class, () -> serverFacade.joinGame("999", "WHITE"),
+                "An exception must be thrown when joining an invalid game (gameID no existente)");
+    }
+
+    @Test
+    @Order(11)
     @DisplayName("Test List Games Success")
     public void testListGamesSuccess() throws IOException {
-        assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
         serverFacade.register("testUser", "password123", "test@example.com");
         serverFacade.login("testUser", "password123");
         serverFacade.createGame("TestGame");
         String response = serverFacade.listGames();
         JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
-        assertTrue(jsonResponse.has("games"), "La respuesta debe contener una lista de juegos");
+        assertTrue(jsonResponse.has("games"), "The response must contain a list of games");
         System.out.println("List games response: " + response);
     }
 
-    /**
-     * Prueba que verifica el fallo al listar juegos sin autenticación.
-     */
     @Test
+    @Order(12)
     @DisplayName("Test List Games Failure without Auth")
     public void testListGamesFailure() throws IOException {
-        assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
-        serverFacade.setAuthToken(null); // Asegura que no hay token
+        assumeTrue(serverFacade != null, "ServerFacade is not initialized");
+        serverFacade.setAuthToken(null);
         assertThrows(IOException.class, () -> serverFacade.listGames(),
-                "Debe lanzar una excepción al listar juegos sin autenticación");
+                "An exception must be thrown when listing games without authentication");
     }
 
     private String extractGameId(String response) {

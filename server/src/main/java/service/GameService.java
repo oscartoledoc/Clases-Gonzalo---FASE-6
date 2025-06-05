@@ -89,40 +89,40 @@ public class GameService {
         return gson.toJson(chessGame.getBoard());
     }
 
-    public void makeMove(int gameId, String authToken, ChessMove move) throws Exception {
-        if (!isValidAuthToken(authToken)) {
-            throw new DataAccessException("Unauthorized");
-        }
-        ChessGame game = activeGames.get(gameId);
-        if (game == null) {
-            throw new DataAccessException("Invalid game");
-        }
-        AuthData auth = dataaccess.getAuth(authToken);
-        String username = auth.username();
-        GameData gameData = dataaccess.getGame(gameId);
-        ChessGame.TeamColor playerColor = gameData.whiteUsername().equals(username) ? ChessGame.TeamColor.WHITE : ChessGame.TeamColor.BLACK;
-
-        if (!game.getTeamTurn().equals(playerColor)) {
-            throw new Exception("Not your turn");
-        }
-        if (game.isGameOver()) {
-            throw new Exception("Game is over");
-        }
-        if (!game.validMoves((move.getStartPosition()).contains(move))) {
-            throw new Exception("Invalid move");
-        }
-        game.makeMove(move);
-
-        if (game.isInCheckmate(playerColor.opposite())) {
-            game.setGameOver(true);
-            throw new Exception("Checkmate! Game over.");
-        } else if (game.isInStalemate(playerColor.opposite())) {
-            game.setGameOver(true);
-            throw new Exception("Stalemate! Game over.");
-        } else if (game.isInCheck(playerColor)) {
-            throw new Exception("You are in check!");
-        }
-    }
+//    public void makeMove(int gameId, String authToken, ChessMove move) throws Exception {
+//        if (!isValidAuthToken(authToken)) {
+//            throw new DataAccessException("Unauthorized");
+//        }
+//        ChessGame game = activeGames.get(gameId);
+//        if (game == null) {
+//            throw new DataAccessException("Invalid game");
+//        }
+//        AuthData auth = dataaccess.getAuth(authToken);
+//        String username = auth.username();
+//        GameData gameData = dataaccess.getGame(gameId);
+//        ChessGame.TeamColor playerColor = gameData.whiteUsername().equals(username) ? ChessGame.TeamColor.WHITE : ChessGame.TeamColor.BLACK;
+//
+//        if (!game.getTeamTurn().equals(playerColor)) {
+//            throw new Exception("Not your turn");
+//        }
+//        if (game.isGameOver()) {
+//            throw new Exception("Game is over");
+//        }
+//        if (!game.validMoves((move.getStartPosition()).contains(move))) {
+//            throw new Exception("Invalid move");
+//        }
+//        game.makeMove(move);
+//
+//        if (game.isInCheckmate(playerColor.opposite())) {
+//            game.setGameOver(true);
+//            throw new Exception("Checkmate! Game over.");
+//        } else if (game.isInStalemate(playerColor.opposite())) {
+//            game.setGameOver(true);
+//            throw new Exception("Stalemate! Game over.");
+//        } else if (game.isInCheck(playerColor)) {
+//            throw new Exception("You are in check!");
+//        }
+//    }
 
     public void resign(int gameId, String authToken) throws DataAccessException {
         if (!isValidAuthToken(authToken)) {
@@ -132,7 +132,7 @@ public class GameService {
         if (game == null) {
             throw new DataAccessException("Invalid game");
         }
-        game.setGameOver(true);
+        //game.setGameOver(true);
         GameData gameData = dataaccess.getGame(gameId);
         dataaccess.updateGame(gameId, new GameData(gameId, gameData.whiteUsername(), gameData.blackUsername(), gameData.gameName(), game));
     }

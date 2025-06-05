@@ -1,6 +1,9 @@
 package ui;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
@@ -9,8 +12,7 @@ import java.util.Map;
 public class ServerFacade {
     private final String serverURL;
     private String authToken;
-
-    public ServerFacade(String serverURL) {
+    public ServerFacade(String serverURL){
         this.serverURL = serverURL;
         this.authToken = null;
     }
@@ -77,7 +79,7 @@ public class ServerFacade {
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setDoOutput(true);
         String jsonInputString = mapToJson(data);
-        try (OutputStream os = conn.getOutputStream()) {
+        try (OutputStream os = conn.getOutputStream()){
             byte[] input = jsonInputString.getBytes("utf-8");
             os.write(input, 0, input.length);
         }
@@ -89,7 +91,7 @@ public class ServerFacade {
             }
             return response.toString();
         } catch (IOException e) {
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), "utf-8"))) {
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"))){
                 StringBuilder errorResponse = new StringBuilder();
                 String errorLine;
                 while ((errorLine = br.readLine()) != null) {
@@ -106,9 +108,7 @@ public class ServerFacade {
         URL url = new URL(serverURL + endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
-        if (authToken != null) {
-            conn.setRequestProperty("Authorization", authToken);
-        }
+        conn.setRequestProperty("Authorization", authToken);
         return handleResponse(conn);
     }
 
@@ -116,9 +116,13 @@ public class ServerFacade {
         URL url = new URL(serverURL + endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("DELETE");
+<<<<<<< HEAD
         if (authToken != null) {
             conn.setRequestProperty("Authorization", authToken); 
         }
+=======
+        conn.setRequestProperty("Authorization", authToken);
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
         return handleResponse(conn);
     }
 
@@ -127,6 +131,7 @@ public class ServerFacade {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("PUT");
         conn.setRequestProperty("Content-Type", "application/json");
+<<<<<<< HEAD
         if (authToken != null) {
             conn.setRequestProperty("Authorization", authToken); 
         }
@@ -154,6 +159,12 @@ public class ServerFacade {
         String jsonInputString = mapToJson(data);
         System.out.println("POST body: " + jsonInputString); // Debug
         try (OutputStream os = conn.getOutputStream()) {
+=======
+        conn.setRequestProperty("Authorization", authToken);
+        conn.setDoOutput(true);
+        String jsonInputString = mapToJson(data);
+        try (OutputStream os = conn.getOutputStream()){
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
             byte[] input = jsonInputString.getBytes("utf-8");
             os.write(input, 0, input.length);
         }
@@ -162,23 +173,22 @@ public class ServerFacade {
 
     private String handleResponse(HttpURLConnection conn) throws IOException {
         int responseCode = conn.getResponseCode();
-        System.out.println("HTTP Response Code: " + responseCode); // Debug añadido
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(responseCode >= 400 ? conn.getErrorStream() : conn.getInputStream(), "utf-8"))) {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(responseCode>=400?conn.getErrorStream():conn.getInputStream(), "utf-8"))) {
             StringBuilder response = new StringBuilder();
             String responseLine;
             while ((responseLine = br.readLine()) != null) {
                 response.append(responseLine.trim());
             }
-            String responseBody = response.toString();
-            System.out.println("Response body: " + responseBody); // Debug añadido
-            if (responseCode >= 400) {
-                throw new IOException("Server error (HTTP " + responseCode + "): " + responseBody);
+            if (responseCode>=400) {
+                throw new IOException("Server error (HTTP " + responseCode + "): " + response.toString());
             }
-            return responseBody;
+            return response.toString();
         } finally {
             conn.disconnect();
         }
     }
+
+
 
     private String mapToJson(Map<String, String> data) {
         StringBuilder json = new StringBuilder("{");
@@ -194,22 +204,83 @@ public class ServerFacade {
         return json.toString();
     }
 
+<<<<<<< HEAD
     private String extractAuthToken(String response) {
         System.out.println("Extracting auth token from: " + response); // Debug
         if (response == null || !response.contains("\"authToken\":\"")) {
             throw new IllegalArgumentException("No authToken found in response: " + response);
+=======
+    public String register(String username, String password, String email) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("username", username);
+        data.put("password", password);
+        data.put("email", email);
+        String response = sendPostRequest("/user", data);
+        authToken = extractAuthToken(response);
+        return response;
+    }
+
+    public String login(String username, String password) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("username", username);
+        data.put("password", password);
+        String response = sendPostRequest("/session", data);
+        authToken = extractAuthToken(response);
+        return response;
+    }
+
+    public String logout() throws IOException {
+        String response = sendDeleteRequest("/session");
+        authToken = null;
+        return response;
+    }
+
+    public String listGames() throws IOException {
+        return sendGetRequest("/game");
+    }
+
+    public String createGame(String gameName) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("gameName", gameName);
+        return sendPostRequestWithAuth("/game", data);
+    }
+
+    private String sendPostRequestWithAuth(String endpoint, Map<String, String> data) throws IOException {
+        URL url = new URL(serverURL + endpoint);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        if (authToken != null && !authToken.isEmpty()) {
+            conn.setRequestProperty("Authorization", authToken);
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
         }
-        int start = response.indexOf("\"authToken\":\"") + "\"authToken\":\"".length();
+        conn.setDoOutput(true);
+        String jsonInputString = mapToJson(data);
+        try (OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        return handleResponse(conn);
+    }
+
+    public String joinGame(String gameID, String playerColor) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("gameID", gameID);
+        data.put("playerColor", playerColor);
+        return sendPutRequest("/game", data);
+    }
+
+    private String extractAuthToken(String response) {
+        int start = response.indexOf("\"authToken\":\"");
+        start += "\"authToken\":\"".length();
         int end = response.indexOf("\"", start);
-        if (start == -1 || end == -1 || start >= end) {
-            throw new IllegalArgumentException("Invalid authToken format: " + response);
-        }
-        String token = response.substring(start, end);
-        System.out.println("Extracted auth token: " + token); // Debug
-        return token;
+        return response.substring(start, end);
     }
 
     public void clearServerState() throws IOException {
         sendDeleteRequest("/db");
     }
+
+
+
 }

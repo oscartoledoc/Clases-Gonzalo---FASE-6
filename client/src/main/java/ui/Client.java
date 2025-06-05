@@ -1,10 +1,12 @@
 package ui;
 
-
-import chess.*;
-import com.google.gson.Gson;
 import java.io.IOException;
 import java.util.Scanner;
+import chess.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 public class Client {
     private final String serverURL;
@@ -14,18 +16,10 @@ public class Client {
     private ChessBoard board;
     private String currentPlayerColor;
     private String authToken;
-    private String currentGameId;
-    private final Gson gson = new Gson();
-    private WebSocketClient wsClient;
-    public void setAuthToken(String authToken) {
-        this.authToken = authToken;
-    }
 
     public Client(String serverURL) {
-        this.authToken = null;
         this.serverURL = serverURL;
         this.serverFacade = new ServerFacade(serverURL);
-        this.wsClient = new WebSocketClient(this);
         this.isRunning = true;
         this.isLoggedIn = false;
         this.board = new ChessBoard();
@@ -35,7 +29,6 @@ public class Client {
 
     public void run() {
         System.out.println("Welcome to 240 Chess! Type Help to get started");
-        displayBoard();
         Scanner scanner = new Scanner(System.in);
         while(isRunning) {
             String command = scanner.nextLine().trim().toLowerCase();
@@ -51,7 +44,6 @@ public class Client {
             handlePreLoginCommand(command, scanner);
         }
     }
-
 
     private void handlePreLoginCommand(String command, Scanner scanner) {
         switch (command) {
@@ -87,9 +79,8 @@ public class Client {
             case "list games":
                 handleListGames();
                 break;
-            case "play game":
+            case "join game":
                 handleJoinGame(scanner);
-                break;
             case "observe game":
                 handleObserveGame(scanner);
                 break;
@@ -126,7 +117,7 @@ public class Client {
             System.out.println("Logout - Logs out of the current account");
             System.out.println("Create Game - Creates a new chess game");
             System.out.println("List Games - Lists existing chess games");
-            System.out.println("Play Game - Join an available chess game");
+            System.out.println("Join Game - Join an available chess game");
             System.out.println("Observe Game - Observe an ongoing chess game");
         } else {
             System.out.println("Login - Logs in to an existing account");
@@ -141,10 +132,19 @@ public class Client {
         System.out.println("Enter password: ");
         String password = scanner.nextLine().trim();
         try {
-            String response = serverFacade.login(username, password);
-            System.out.println("Login successful " + response);
-        } catch (Exception e){
-            System.out.println("Login failed: " + e.getMessage());
+            serverFacade.login(username, password);
+            System.out.println("Login successful!");
+            isLoggedIn = true;
+            authToken = serverFacade.getAuthToken();
+            System.out.println("You are now logged in");
+            System.out.println("Type Help for a list of commands");
+        } catch (IOException e){
+            if (e.getMessage().contains("401")) {
+                System.out.println("Login failed: Invalid username or password");
+            }
+            else {
+                System.out.println("Login failed: " + e.getMessage());
+            }
         }
     }
 
@@ -156,24 +156,31 @@ public class Client {
         System.out.println("Enter email: ");
         String email = scanner.nextLine().trim();
         try {
-            String response = serverFacade.register(username, password, email);
-            System.out.println("Registration successful " + response);
-        } catch (Exception e){
-            System.out.println("Registration failed: " + e.getMessage());
+            serverFacade.register(username, password, email);
+            System.out.println("Registration successful!");
+            System.out.println("Type Help for a list of commands");
+            serverFacade.login(username, password);
+            isLoggedIn = true;
+            authToken = serverFacade.getAuthToken();
+        } catch (IOException e){
+            if (e.getMessage().contains("403")) {
+                System.out.println("Registration failed: Username already exists");
+            }
+            else {
+                System.out.println("Registration failed: " + e.getMessage());
+            }
         }
     }
 
     private void handleLogout() {
-        String response = null;
         try {
-            response = serverFacade.logout();
+            serverFacade.logout();
         } catch (Exception e){
             System.out.println("Logout failed: " + e.getMessage());
         }
         authToken = null;
         isLoggedIn = false;
-        System.out.println("Logout successful " + response);
-        displayBoard();
+        System.out.println("Logout successful!");
     }
 
     private void handleCreateGame(Scanner scanner) {
@@ -183,27 +190,54 @@ public class Client {
         System.out.println("Enter game name: ");
         String gameName = scanner.nextLine().trim();
         try {
-            String response = serverFacade.createGame(gameName);
-            System.out.println("Game created " + response);
+            serverFacade.createGame(gameName);
+            System.out.println("Game created successfully!");
         } catch (Exception e){
             System.out.println("Game creation failed: " + e.getMessage());
         }
     }
 
-    private void handleListGames(){
-        if (!loginCheck()){
+    private void handleListGames() {
+        if(!loginCheck()) {
             return;
         }
         try {
             String response = serverFacade.listGames();
-            System.out.println("Games: " + response);
-        } catch (Exception e){
-            System.out.println("Game listing failed: " + e.getMessage());
+            Gson gson = new Gson();
+            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+            JsonArray gamesArray = jsonResponse.getAsJsonArray("games");
+
+            if (gamesArray == null || gamesArray.size() == 0) {
+                System.out.println("No games available at the moment.");
+                return;
+            }
+
+            System.out.println("Available Games:");
+            int index = 1;
+            for (JsonElement gameElement : gamesArray) {
+                JsonObject game = gameElement.getAsJsonObject();
+                String gameName = game.get("gameName").getAsString();
+
+                String whitePlayer = game.has("whiteUsername") && !game.get("whiteUsername").isJsonNull()
+                        ? game.get("whiteUsername").getAsString() : "None";
+
+                String blackPlayer = game.has("blackUsername") && !game.get("blackUsername").isJsonNull()
+                        ? game.get("blackUsername").getAsString() : "None";
+
+                System.out.printf("%d. %s - White: %s, Black: %s%n",
+                        index, gameName, whitePlayer, blackPlayer);
+                index++;
+            }
+
+        } catch (IOException e) {
+            System.out.println("Failed to list games: Unable to connect to the server. Please try again later.");
+        } catch (Exception e) {
+            System.out.println("Failed to list games: An unexpected error occurred. Please try again.");
         }
     }
 
     private void handleJoinGame(Scanner scanner) {
-        if (!loginCheck()){
+        if (!loginCheck()) {
             return;
         }
         System.out.println("Enter game id: ");
@@ -216,29 +250,24 @@ public class Client {
 
         }
         try {
-            String response = serverFacade.joinGame(gameId, playerColor);
+            serverFacade.joinGame(gameId, playerColor);
             currentPlayerColor = playerColor;
-            currentGameId = gameId;
-            wsClient.connect("ws://localhost:8081", authToken, gameId);
-            System.out.println("Game joined " + response);
+            System.out.println("Game joined");
             displayBoard();
-        } catch (Exception e){
-            System.out.println("Game joining failed: " + e.getMessage());
+        } catch (IOException e){
+            if (e.getMessage().contains("403")) {
+                System.out.println("Unable to join: Color taken");
+            } else if (e.getMessage().contains("500")) {
+                System.out.println("Unable to join: ID not found");
+            }
+            else {
+                System.out.println("Unable to join: " + e.getMessage());
+            }
         }
 
     }
     private void handleObserveGame(Scanner scanner) {
-        if (!loginCheck()) return;
-        System.out.println("Enter game id: ");
-        String gameId = scanner.nextLine().trim();
-        try {
-            currentGameId = gameId;
-            wsClient.connect("ws://localhost:8081", authToken, gameId);
-            System.out.println("Observing game " + gameId);
-            displayBoard();
-        } catch (Exception e) {
-            System.out.println("Observing failed: " + e.getMessage());
-        }
+        return;
     }
 
 
@@ -249,7 +278,6 @@ public class Client {
         }
         return true;
     }
-
 
     private void displayBoard() {
 System.out.println(EscapeSequences.ERASE_SCREEN);
@@ -278,6 +306,7 @@ System.out.println(EscapeSequences.ERASE_SCREEN);
         System.out.println();
     }
     }
+
 
     private String getPieceSymbol(ChessPiece piece) {
         ChessGame.TeamColor color = piece.getTeamColor();
