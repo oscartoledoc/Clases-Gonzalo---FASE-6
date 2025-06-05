@@ -8,12 +8,16 @@ import ui.ServerFacade;
 
 import java.io.IOException;
 
+<<<<<<< HEAD
+import static org.junit.jupiter.api.Assertions.*;
+=======
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
 
 
 public class ServerFacadeTests {
@@ -39,16 +43,37 @@ public class ServerFacadeTests {
         }
     }
 
+<<<<<<< HEAD
+    /**
+     * Método de limpieza que se ejecuta una vez después de todas las pruebas.
+     * Detiene el servidor para liberar recursos.
+     */
+    @AfterEach
+        public void tearDown() {
+            if (serverFacade != null) {
+                try {
+                    serverFacade.clearServerState();
+                } catch (Exception e) {
+                    System.err.println("Failed to clear server state after test: " + e.getMessage());
+                }
+            }
+=======
     @AfterAll
     static void stopServer() {
         if (server != null) {
             server.stop();
             System.out.println("Stopped test HTTP server on " + serverUrl);
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
         }
-    }
 
 
     @BeforeEach
+<<<<<<< HEAD
+        public void setUp() {
+            if (serverFacade != null) {
+                serverFacade.setAuthToken(null);
+                // No limpiamos el estado aquí para permitir que el usuario registrado persista
+=======
     public void setUp() {
         if (serverFacade != null) {
             serverFacade.setAuthToken(null);
@@ -63,9 +88,9 @@ public class ServerFacadeTests {
                 serverFacade.clearServerState();
             } catch (Exception e) {
                 System.err.println("Failed to clear server state after test: " + e.getMessage());
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
             }
         }
-    }
 
     @Test
     @Order(1)
@@ -120,10 +145,16 @@ public class ServerFacadeTests {
         serverFacade.register("testUser", "password123", "test@example.com");
         serverFacade.login("testUser", "password123");
         String response = serverFacade.logout();
+<<<<<<< HEAD
+        assertNotNull(response, "La respuesta del logout no debe ser nula");
+        assertTrue(response.contains("successful"), "La respuesta debe indicar éxito");
+        assertNull(serverFacade.getAuthToken(), "El token debe limpiarse tras logout");
+=======
         JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
         assertTrue(jsonResponse.has("message") && jsonResponse.get("message").getAsString().contains("logged out"),
                 "The response must indicate success");
         assertNull(serverFacade.getAuthToken(), "The token must be cleared after logout");
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
         System.out.println("Logout response: " + response);
     }
 
@@ -164,6 +195,16 @@ public class ServerFacadeTests {
     @Order(9)
     @DisplayName("Test Join Game Success")
     public void testJoinGameSuccess() throws IOException {
+<<<<<<< HEAD
+        assumeTrue(serverFacade != null, "ServerFacade no está inicializado");
+        serverFacade.register("testUser", "password123", "test@example.com");
+        serverFacade.login("testUser", "password123");
+        serverFacade.createGame("TestGame"); // Crea un juego (simula que devuelve gameId = 1)
+        String response = serverFacade.joinGame("1", "WHITE"); // Ajusta el gameId según la respuesta
+        assertNotNull(response, "La respuesta de unión a juego no debe ser nula");
+        assertTrue(response.contains("Joined"), "La respuesta debe indicar unión exitosa");
+        System.out.println("Join game response: " + response);
+=======
         assumeTrue(serverFacade != null, "ServerFacade is not initialized");
         String registerResponse = serverFacade.register("testUser", "password123", "test@example.com");
         System.out.println("Register response: " + registerResponse);
@@ -194,6 +235,7 @@ public class ServerFacadeTests {
         }
         JsonObject jsonResponse = gson.fromJson(joinResponse, JsonObject.class);
         assertNotNull(joinResponse, "Join game response must not be null");
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
     }
 
     @Test

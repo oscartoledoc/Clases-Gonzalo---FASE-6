@@ -110,6 +110,27 @@ public class Client {
         }
     }
 
+    // private void handleCommand(String command, Scanner scanner) {
+    //     switch (command) {
+    //         case "help":
+    //             displayHelp();
+    //             break;
+    //         case "quit":
+    //             isRunning = false;
+    //             System.out.println("Goodbye!");
+    //             break;
+    //         case "login":
+    //             handleLogin(scanner);
+    //             break;
+    //         case "register":
+    //             handleRegister(scanner);
+    //             break;
+    //             default:
+    //                System.out.println("Invalid command, type Help for a list of commands");
+    //     }
+    // }
+
+
     private void displayHelp() {
         System.out.println("Available commands: ");
         System.out.println("Help - Displays this help message");
@@ -361,38 +382,31 @@ public class Client {
     }
 
     private void displayBoard() {
-        System.out.println(EscapeSequences.ERASE_SCREEN);
+System.out.println(EscapeSequences.ERASE_SCREEN);
 
-        boolean isWhitePerspective = "white".equalsIgnoreCase(currentPlayerColor);
+    // Determinar si el tablero debe mostrarse desde la perspectiva de las blancas o las negras
+    boolean isWhitePerspective = "white".equalsIgnoreCase(currentPlayerColor);
 
-        int[] rows = isWhitePerspective ? new int[]{8,7,6,5,4,3,2,1} : new int[]{1,2,3,4,5,6,7,8};
-        int[] cols = isWhitePerspective ? new int[]{1,2,3,4,5,6,7,8} : new int[]{8,7,6,5,4,3,2,1};
+    // Definir el rango de filas y columnas según la perspectiva
+    int startRow = isWhitePerspective ? 8 : 1;
+    int endRow = isWhitePerspective ? 1 : 8;
+    int rowIncrement = isWhitePerspective ? -1 : 1;
+    int startCol = isWhitePerspective ? 1 : 8;
+    int endCol = isWhitePerspective ? 8 : 1;
+    int colIncrement = isWhitePerspective ? 1 : -1;
 
-        for (int row : rows) {
-            System.out.print(row + " ");
-            for (int col : cols) {
-                ChessPosition pos = new ChessPosition(row, col);
-                ChessPiece piece = board.getPiece(pos);
-                String pieceSymbol = piece != null ? getPieceSymbol(piece) : EscapeSequences.EMPTY;
-                String bgColor = ((row + col) % 2 == 0) ?
-                        EscapeSequences.SET_BG_COLOR_DARK_GREY : EscapeSequences.SET_BG_COLOR_LIGHT_GREY;
-                System.out.print(bgColor + pieceSymbol + EscapeSequences.RESET_BG_COLOR);
-            }
-            System.out.println();
-        }
-
-        System.out.print("  ");
-        for (int col : cols) {
-            char colLabel = (char) ('a' + col - 1);
-            System.out.printf("%s   ", colLabel);
+    // Mostrar el tablero
+    for (int row = startRow; isWhitePerspective ? row >= endRow : row <= endRow; row += rowIncrement) {
+        System.out.print(row + " ");
+        for (int col = startCol; isWhitePerspective ? col <= endCol : col >= endCol; col += colIncrement) {
+            ChessPosition pos = new ChessPosition(row, col);
+            ChessPiece piece = board.getPiece(pos);
+            String pieceSymbol = piece != null ? getPieceSymbol(piece) : EscapeSequences.EMPTY;
+            String bgColor = ((row + col) % 2 == 0) ? EscapeSequences.SET_BG_COLOR_LIGHT_GREY : EscapeSequences.SET_BG_COLOR_DARK_GREY;
+            System.out.print(bgColor + pieceSymbol + EscapeSequences.RESET_BG_COLOR);
         }
         System.out.println();
-
-        if (isLoggedIn && currentPlayerColor != null) {
-            System.out.println("Current player: " + currentPlayerColor);
-        } else {
-            System.out.println("Not in a game or not logged in");
-        }
+    }
     }
 
 

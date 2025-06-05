@@ -25,6 +25,53 @@ public class ServerFacade {
         this.authToken = authToken;
     }
 
+    public String register(String username, String password, String email) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("username", username);
+        data.put("password", password);
+        data.put("email", email);
+        String response = sendPostRequest("/user", data);
+        System.out.println("Register Response: " + response);
+        authToken = extractAuthToken(response); // Nombre corregido
+        System.out.println("Auth token after register: " + authToken); // Debug añadido
+        return response;
+    }
+
+    public String login(String username, String password) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("username", username);
+        data.put("password", password);
+        String response = sendPostRequest("/session", data);
+        System.out.println("Login response: " + response);
+        authToken = extractAuthToken(response); // Nombre corregido
+        System.out.println("Auth token after login: " + authToken); // Debug añadido
+        return response;
+    }
+
+    public String logout() throws IOException {
+        String response = sendDeleteRequest("/session");
+        authToken = null;
+        return response;
+    }
+
+    public String listGames() throws IOException {
+        return sendGetRequest("/game");
+    }
+
+    public String createGame(String gameName) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("gameName", gameName);
+        System.out.println("Creating game with token: " + authToken); // Debug mejorado
+        return sendPostRequestWithAuth("/game", data);
+    }
+
+    public String joinGame(String gameId, String playerColor) throws IOException {
+        Map<String, String> data = new HashMap<>();
+        data.put("gameId", gameId);
+        data.put("playerColor", playerColor);
+        return sendPutRequest("/game", data);
+    }
+
     private String sendPostRequest(String endpoint, Map<String, String> data) throws IOException {
         URL url = new URL(serverURL + endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -69,7 +116,13 @@ public class ServerFacade {
         URL url = new URL(serverURL + endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("DELETE");
+<<<<<<< HEAD
+        if (authToken != null) {
+            conn.setRequestProperty("Authorization", authToken); 
+        }
+=======
         conn.setRequestProperty("Authorization", authToken);
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
         return handleResponse(conn);
     }
 
@@ -78,10 +131,40 @@ public class ServerFacade {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("PUT");
         conn.setRequestProperty("Content-Type", "application/json");
+<<<<<<< HEAD
+        if (authToken != null) {
+            conn.setRequestProperty("Authorization", authToken); 
+        }
+        conn.setDoOutput(true);
+        String jsonInputString = mapToJson(data);
+        try (OutputStream os = conn.getOutputStream()) {
+            byte[] input = jsonInputString.getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        return handleResponse(conn);
+    }
+
+    private String sendPostRequestWithAuth(String endpoint, Map<String, String> data) throws IOException {
+        URL url = new URL(serverURL + endpoint);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        if (authToken != null && !authToken.isEmpty()) {
+            conn.setRequestProperty("Authorization", authToken)
+            System.out.println("Sending POST with Authorization: " + authToken); // Debug
+        } else {
+            System.out.println("WARNING: No auth token available!"); // Debug
+        }
+        conn.setDoOutput(true);
+        String jsonInputString = mapToJson(data);
+        System.out.println("POST body: " + jsonInputString); // Debug
+        try (OutputStream os = conn.getOutputStream()) {
+=======
         conn.setRequestProperty("Authorization", authToken);
         conn.setDoOutput(true);
         String jsonInputString = mapToJson(data);
         try (OutputStream os = conn.getOutputStream()){
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
             byte[] input = jsonInputString.getBytes("utf-8");
             os.write(input, 0, input.length);
         }
@@ -121,6 +204,12 @@ public class ServerFacade {
         return json.toString();
     }
 
+<<<<<<< HEAD
+    private String extractAuthToken(String response) {
+        System.out.println("Extracting auth token from: " + response); // Debug
+        if (response == null || !response.contains("\"authToken\":\"")) {
+            throw new IllegalArgumentException("No authToken found in response: " + response);
+=======
     public String register(String username, String password, String email) throws IOException {
         Map<String, String> data = new HashMap<>();
         data.put("username", username);
@@ -163,6 +252,7 @@ public class ServerFacade {
         conn.setRequestProperty("Content-Type", "application/json");
         if (authToken != null && !authToken.isEmpty()) {
             conn.setRequestProperty("Authorization", authToken);
+>>>>>>> a5c7df75dd164d2fb2cd4f9e82b460b085fb6f10
         }
         conn.setDoOutput(true);
         String jsonInputString = mapToJson(data);
