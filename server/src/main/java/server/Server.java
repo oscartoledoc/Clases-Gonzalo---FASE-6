@@ -10,6 +10,7 @@ import service.*;
 import com.google.gson.Gson;
 import spark.*;
 import service.Results.*;
+import websocket.WebSocketServer;
 
 public class Server {
 
@@ -19,11 +20,12 @@ public class Server {
     private final SessionService sessionService;
     private final ClearService clearService;
     private final Gson gson;
-    private final WebSocketServer webSocketServer = new WebSocketServer();
+    private final WebSocketServer webSocketServer;
 
     public Server() {
         try {
             this.dataaccess = new MySQLDataAccess();
+            this.webSocketServer = new WebSocketServer();
         } catch (DataAccessException e) {
             throw new RuntimeException("Unable to connect to database", e);
         }
@@ -49,6 +51,7 @@ public class Server {
 //        } catch (Exception e) {
 //            throw new RuntimeException("Unable to start WebSocket server", e);
 //        }
+        webSocketServer.run();
 
         Spark.awaitInitialization();
         return Spark.port();

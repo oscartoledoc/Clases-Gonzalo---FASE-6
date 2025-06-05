@@ -7,10 +7,12 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import websocket.*;
 
 public class Client {
     private final String serverURL;
     private final ServerFacade serverFacade;
+    private final WebSocketClient wsClient;
     private boolean isRunning;
     private boolean isLoggedIn;
     private ChessBoard board;
@@ -20,11 +22,30 @@ public class Client {
     public Client(String serverURL) {
         this.serverURL = serverURL;
         this.serverFacade = new ServerFacade(serverURL);
+        this.wsClient = new WebSocketClient();
         this.isRunning = true;
         this.isLoggedIn = false;
         this.board = new ChessBoard();
         this.board.resetBoard();
         this.currentPlayerColor = null;
+
+        wsClient.setListener(new WebSocketClient.clientListener() {
+            @Override
+            public void onGameUpdate(ChessGame game) {
+                board = game.getBoard();
+                displayBoard();
+            }
+
+            @Override
+            public void onNotification(String message) {
+                System.out.println("Notification: " + message);
+            }
+
+            @Override
+            public void onError(String message) {
+                System.out.println("Error: " + message);
+            }
+        });
     }
 
     public void run() {
@@ -247,6 +268,87 @@ public class Client {
     }
     private void handleObserveGame(Scanner scanner) {
         return;
+    }
+
+    private void handleMakeMove(Scanner scanner) {
+        if (currentPlayerColor == null) {
+            System.out.println("Observers cannot make moves.");
+            return;
+        }
+        System.out.println("Enter move (e.g., e2 e4): ");
+        String moveInput = scanner.nextLine().trim();
+        String[] parts = moveInput.split("\\s+");
+        if (parts.length != 2) {
+            System.out.println("Invalid move format. Use: start end (e.g., e2 e4)");
+            return;
+        }
+        try {
+            ChessPosition start = parsePosition(parts[0]);
+            ChessPosition end = parsePosition(parts[1]);
+            ChessMove move = new ChessMove(start, end, null);
+            sendMove(move);
+        } catch (Exception e) {
+            System.out.println("Invalid move: " + e.getMessage());
+        }
+    }
+
+    private void handleResign() {
+        if (currentPlayerColor == null) {
+            System.out.println("Observers cannot resign.");
+            return;
+        }
+        sendResign();
+        inGame = false;
+        currentGameId = null;
+        currentPlayerColor = null;
+        wsClient.disconnect();
+        System.out.println("You have resigned. Type Help for commands.");
+    }
+
+    private void handleLeave() {
+        sendLeave();
+        inGame = false;
+        currentGameId = null;
+        currentPlayerColor = null;
+        wsClient.disconnect();
+        System.out.println("You have left the game. Type Help for commands.");
+    }
+
+    private void sendMove(ChessMove move) {
+        if (currentPlayerColor == null) {
+            System.out.println("Observers cannot make moves.");
+            return;
+        }
+        UserGameCommand command = new MakeMoveCommand(authToken, Integer.parseInt(currentGameId), move);
+        wsClient.sendCommand(command);
+    }
+
+    private void sendResign() {
+        if (currentPlayerColor == null) {
+            System.out.println("Observers cannot resign.");
+            return;
+        }
+        UserGameCommand command = new UserGameCommand(UserGameCommand.CommandType.RESIGN, authToken, Integer.parseInt(currentGameId));
+        wsClient.sendCommand(command);
+    }
+
+    private void sendLeave() {
+        UserGameCommand command = new UserGameCommand(UserGameCommand.CommandType.LEAVE, authToken, Integer.parseInt(currentGameId));
+        wsClient.sendCommand(command);
+    }
+
+    private ChessPosition parsePosition(String pos) throws Exception {
+        if (pos.length() != 2) {
+            throw new Exception("Invalid position format");
+        }
+        char colChar = pos.charAt(0);
+        char rowChar = pos.charAt(1);
+        int col = colChar - 'a' + 1;
+        int row = rowChar - '0';
+        if (col < 1 || col > 8 || row < 1 || row > 8) {
+            throw new Exception("Position out of bounds");
+        }
+        return new ChessPosition(row, col);
     }
 
 
