@@ -98,7 +98,6 @@ public class Client {
         }
     }
 
-<<<<<<< HEAD
     // private void handleCommand(String command, Scanner scanner) {
     //     switch (command) {
     //         case "help":
@@ -118,60 +117,6 @@ public class Client {
     //                System.out.println("Invalid command, type Help for a list of commands");
     //     }
     // }
-=======
-    private void handleMove(Scanner scanner) {
-        if (currentGameId == null) {
-            System.out.println("You must join a game first");
-            return;
-        }
-        System.out.println("Enter move (e.g., e2-e4): ");
-        String moveStr = scanner.nextLine().trim();
-        String[] positions = moveStr.split("-");
-        if (positions.length != 2) {
-            System.out.println("Invalid move format");
-            return;
-        }
-        try {
-            ChessPosition start = new ChessPosition(Integer.parseInt(positions[0].substring(1)), positions[0].charAt(0) - 'a' + 1);
-            ChessPosition end = new ChessPosition(Integer.parseInt(positions[1].substring(1)), positions[1].charAt(0) - 'a' + 1);
-            ChessMove move = new ChessMove(start, end, null);
-            wsClient.sendMove(gson.toJson(move));
-            System.out.println("Move sent: " + moveStr);
-        } catch (Exception e) {
-            System.out.println("Invalid move: " + e.getMessage());
-        }
-    }
-
-    private void handleResign() {
-        if (currentGameId == null) {
-            System.out.println("You must join a game first");
-            return;
-        }
-        try {
-            wsClient.sendResign();
-            System.out.println("Resigned from game");
-            currentGameId = null;
-            currentPlayerColor = null;
-        } catch (IOException e) {
-            System.out.println("Resign failed: " + e.getMessage());
-        }
-    }
-
-    private void handleLeave() {
-        if (currentGameId == null) {
-            System.out.println("You must join a game first");
-            return;
-        }
-        try {
-            wsClient.sendLeave();
-            System.out.println("Left game");
-            currentGameId = null;
-            currentPlayerColor = null;
-        } catch (IOException e) {
-            System.out.println("Leave failed: " + e.getMessage());
-        }
-    }
->>>>>>> d484c3ba8ed67b6e76cbd96727b63efaeccb25c5
 
 
     private void displayHelp() {
@@ -307,24 +252,31 @@ public class Client {
 
 
     private void displayBoard() {
-        System.out.println(EscapeSequences.ERASE_SCREEN);
-        for (int row = 8; row >= 1; row--) {
-            System.out.print(row + " ");
-            for (int col = 1; col <= 8; col++) {
-                ChessPosition pos = new ChessPosition(row, col);
-                ChessPiece piece = board.getPiece(pos);
-                String pieceSymbol = piece != null ? getPieceSymbol(piece): EscapeSequences.EMPTY;
-                String bgColor = ((row + col)% 2 == 0)? EscapeSequences.SET_BG_COLOR_LIGHT_GREY : EscapeSequences.SET_BG_COLOR_DARK_GREY;
-                System.out.println(bgColor + pieceSymbol + EscapeSequences.RESET_BG_COLOR);
-            }
-            System.out.println();
+System.out.println(EscapeSequences.ERASE_SCREEN);
+
+    // Determinar si el tablero debe mostrarse desde la perspectiva de las blancas o las negras
+    boolean isWhitePerspective = "white".equalsIgnoreCase(currentPlayerColor);
+
+    // Definir el rango de filas y columnas según la perspectiva
+    int startRow = isWhitePerspective ? 8 : 1;
+    int endRow = isWhitePerspective ? 1 : 8;
+    int rowIncrement = isWhitePerspective ? -1 : 1;
+    int startCol = isWhitePerspective ? 1 : 8;
+    int endCol = isWhitePerspective ? 8 : 1;
+    int colIncrement = isWhitePerspective ? 1 : -1;
+
+    // Mostrar el tablero
+    for (int row = startRow; isWhitePerspective ? row >= endRow : row <= endRow; row += rowIncrement) {
+        System.out.print(row + " ");
+        for (int col = startCol; isWhitePerspective ? col <= endCol : col >= endCol; col += colIncrement) {
+            ChessPosition pos = new ChessPosition(row, col);
+            ChessPiece piece = board.getPiece(pos);
+            String pieceSymbol = piece != null ? getPieceSymbol(piece) : EscapeSequences.EMPTY;
+            String bgColor = ((row + col) % 2 == 0) ? EscapeSequences.SET_BG_COLOR_LIGHT_GREY : EscapeSequences.SET_BG_COLOR_DARK_GREY;
+            System.out.print(bgColor + pieceSymbol + EscapeSequences.RESET_BG_COLOR);
         }
-        System.out.println("  a b c d e f g h");
-        if (isLoggedIn && currentPlayerColor != null) {
-            System.out.println("Current player: " + currentPlayerColor);
-        } else {
-            System.out.println("Not in a game or not logged in");
-        }
+        System.out.println();
+    }
     }
 
     private String getPieceSymbol(ChessPiece piece) {
