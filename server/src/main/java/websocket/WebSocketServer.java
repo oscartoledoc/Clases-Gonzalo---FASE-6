@@ -7,6 +7,7 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
+import service.GameService;
 import websocket.commands.UserGameCommand;
 import websocket.messages.ServerMessage;
 
@@ -16,10 +17,14 @@ import java.util.Map;
 
 @WebSocket
 public class WebSocketServer {
-    //private final GameService gameService = new GameService();
+    private final GameService gameService;
     private final Map<String, Session> sessions = new HashMap<>();
     private final Map<Integer, Map<String, Session>> gameSessions = new HashMap<>();
     private final Gson gson = new Gson();
+
+    public WebSocketServer(GameService gameService) {
+        this.gameService = gameService;
+    }
 
     @OnWebSocketConnect
     public void onConnect(Session session) {
@@ -48,11 +53,11 @@ public class WebSocketServer {
                     break;
                 case MAKE_MOVE:
                     ChessMove move = gson.fromJson(message, ChessMove.class);
-                    //ChessGame.makeMove(move);
+                    ChessGame.makeMove(move);
                     broadcastLoadGame(gameID, authToken);
                     break;
                 case RESIGN:
-                    //gameService.resign(gameID, authToken);
+                    gameService.resign(gameID, authToken);
                     broadcastNotification(gameID, authToken + " resigned.", session);
                     break;
                 case LEAVE:
@@ -70,8 +75,8 @@ public class WebSocketServer {
         if (session.isOpen()) {
             try {
                 if (message.getServerMessageType() == ServerMessage.ServerMessageType.LOAD_GAME) {
-                    //String json = gson.toJson(message) + ",\"game\":" + gameService.getGameState(gameID, authToken);
-                    //session.getRemote().sendString(json);
+                    String json = gson.toJson(message) + ",\"game\":" + gameService.getGameState(gameID, authToken);
+                    session.getRemote().sendString(json);
                     System.out.println("Yeeii");
                 } else {
                     session.getRemote().sendString(gson.toJson(message));
@@ -125,7 +130,18 @@ public class WebSocketServer {
         return Integer.parseInt(session.getUpgradeRequest().getParameterMap().get("GameID").get(0));
     }
 
+    public void start(int port) {
+        spark.Spark.port(port);
+        spark.Spark.webSocket("/connect", WebSocketServer.class);
+        spark.Spark.init();
+    }
 
-
+    public void stop() {
+        spark.Spark.stop();
+        spark.Spark.awaitStop();
+        sessions.clear();
+        gameSessions.clear();
+        System.out.println("WebSocket server stopped.");
+    }
 }
 

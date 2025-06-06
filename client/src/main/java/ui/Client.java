@@ -7,29 +7,33 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import websocket.*;
+import websocket.WebSocketClientManager;
+import websocket.commands.MakeMoveCommand;
+import websocket.commands.UserGameCommand;
 
 public class Client {
     private final String serverURL;
     private final ServerFacade serverFacade;
-    private final WebSocketClient wsClient;
-    private boolean isRunning;
+    private final WebSocketClientManager wsClient;
+    public boolean isRunning;
     private boolean isLoggedIn;
     private ChessBoard board;
     private String currentPlayerColor;
     private String authToken;
+    private String currentGameId;
+    private Boolean inGame;
 
     public Client(String serverURL) {
         this.serverURL = serverURL;
         this.serverFacade = new ServerFacade(serverURL);
-        this.wsClient = new WebSocketClient();
+        this.wsClient = new WebSocketClientManager();
         this.isRunning = true;
         this.isLoggedIn = false;
         this.board = new ChessBoard();
         this.board.resetBoard();
         this.currentPlayerColor = null;
 
-        wsClient.setListener(new WebSocketClient.clientListener() {
+        wsClient.setListener(new WebSocketClientManager.clientListener() {
             @Override
             public void onGameUpdate(ChessGame game) {
                 board = game.getBoard();
@@ -109,28 +113,6 @@ public class Client {
                 System.out.println("Invalid command, type Help for a list of commands");
         }
     }
-
-    // private void handleCommand(String command, Scanner scanner) {
-    //     switch (command) {
-    //         case "help":
-    //             displayHelp();
-    //             break;
-    //         case "quit":
-    //             isRunning = false;
-    //             System.out.println("Goodbye!");
-    //             break;
-    //         case "login":
-    //             handleLogin(scanner);
-    //             break;
-    //         case "register":
-    //             handleRegister(scanner);
-    //             break;
-    //             default:
-    //                System.out.println("Invalid command, type Help for a list of commands");
-    //     }
-    // }
-
-
     private void displayHelp() {
         System.out.println("Available commands: ");
         System.out.println("Help - Displays this help message");
