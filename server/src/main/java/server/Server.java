@@ -41,8 +41,7 @@ public class Server {
     public int run(int desiredPort) {
         Spark.port(desiredPort);
 
-        WebSocketServer wsServer = new WebSocketServer(gameService);
-        Spark.webSocket("/connect", wsServer);
+        Spark.webSocket("/ws", WebSocketServer.class);
 
         Spark.staticFiles.location("web");
 
@@ -51,12 +50,6 @@ public class Server {
 
         // This line initializes the server and can be removed once you have a functioning endpoint
         Spark.init();
-//        try {
-//            webSocketServer.start(8081);
-//        } catch (Exception e) {
-//            System.err.println("Error starting websocket server");
-//            throw new RuntimeException(e);
-//        }
 
         Spark.awaitInitialization();
         return Spark.port();

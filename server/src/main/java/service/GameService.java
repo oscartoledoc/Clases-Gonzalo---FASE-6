@@ -11,6 +11,7 @@ public class GameService {
     private final DataAccess dataaccess;
     private final java.util.Map<Integer, ChessGame> activeGames = new java.util.HashMap<>();
     private final com.google.gson.Gson gson = new com.google.gson.Gson();
+
     public GameService(DataAccess dataaccess) {
         this.dataaccess = dataaccess;
     }
