@@ -14,6 +14,7 @@ import websocket.messages.ServerMessage;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import chess.ChessGame;
 
 @WebSocket
 public class WebSocketServer {
@@ -53,7 +54,7 @@ public class WebSocketServer {
                     break;
                 case MAKE_MOVE:
                     ChessMove move = gson.fromJson(message, ChessMove.class);
-                    ChessGame.makeMove(move);
+                    //ChessGame.makeMove(move);
                     broadcastLoadGame(gameID, authToken);
                     break;
                 case RESIGN:
@@ -77,12 +78,11 @@ public class WebSocketServer {
                 if (message.getServerMessageType() == ServerMessage.ServerMessageType.LOAD_GAME) {
                     String json = gson.toJson(message) + ",\"game\":" + gameService.getGameState(gameID, authToken);
                     session.getRemote().sendString(json);
-                    System.out.println("Yeeii");
                 } else {
                     session.getRemote().sendString(gson.toJson(message));
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (Exception e) {
+                System.out.println("Error sending message: " + e.getMessage());
             }
         }
     }
