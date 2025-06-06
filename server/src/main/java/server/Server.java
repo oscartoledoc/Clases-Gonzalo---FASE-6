@@ -41,6 +41,9 @@ public class Server {
     public int run(int desiredPort) {
         Spark.port(desiredPort);
 
+        WebSocketServer wsServer = new WebSocketServer(gameService);
+        Spark.webSocket("/connect", wsServer);
+
         Spark.staticFiles.location("web");
 
         // Register your endpoints and handle exceptions here.
