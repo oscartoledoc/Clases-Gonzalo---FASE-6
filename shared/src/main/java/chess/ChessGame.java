@@ -13,11 +13,13 @@ public class ChessGame {
 
     private ChessBoard board;
     private TeamColor teamTurn;
+    private boolean isGameOver;
 
     public ChessGame() {
         board = new ChessBoard();
         board.resetBoard();
         teamTurn = TeamColor.WHITE;
+        this.isGameOver = isGameOver;
 
     }
 
@@ -88,6 +90,14 @@ public class ChessGame {
 
         }
         return validMoves;
+    }
+
+    public boolean isGameOver() {
+        return isGameOver;
+    }
+
+    public void setGameOver(boolean gameOver) {
+        isGameOver = gameOver;
     }
 
     /**
@@ -236,10 +246,7 @@ public class ChessGame {
         return true;
     }
 
-    /**
-     * Simula todos los movimientos de la pieza en la posición dada
-     * y devuelve true si al menos uno deja al rey fuera de jaque.
-     */
+
     private boolean hasLegalMoveForPiece(TeamColor teamColor, ChessPosition position) {
         ChessPiece piece = board.getPiece(position);
         if (piece == null || piece.getTeamColor() != teamColor) {

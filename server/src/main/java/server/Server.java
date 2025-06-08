@@ -41,7 +41,7 @@ public class Server {
     public int run(int desiredPort) {
         Spark.port(desiredPort);
 
-        Spark.webSocket("/ws", WebSocketServer.class);
+        Spark.webSocket("/ws", webSocketServer); // <-- ¡Cambia de WebSocketServer.class a webSocketServer!
 
         Spark.staticFiles.location("web");
 

@@ -46,4 +46,8 @@ public class WebSocketClientEndpoint {
         this.session = null;
     }
 
+    public boolean isOpen() {
+        return session != null && session.isOpen();
+    }
+
 }

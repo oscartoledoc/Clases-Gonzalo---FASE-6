@@ -11,6 +11,7 @@ import org.mindrot.jbcrypt.BCrypt;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects; // Importar Objects
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class MySQLDataAccess implements DataAccess {
@@ -61,6 +62,7 @@ public class MySQLDataAccess implements DataAccess {
             throw new DataAccessException("failed to get user " + e.getMessage());
         }
     }
+
     @Override
     public void createUser(UserData user) throws DataAccessException {
         try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement
@@ -68,7 +70,6 @@ public class MySQLDataAccess implements DataAccess {
             String hashedPassword = BCrypt.hashpw(user.password(), BCrypt.gensalt(12));
             stmt.setString(1, user.username());
             stmt.setString(2, hashedPassword);
-            //stmt.setString(2, user.hashedPassword());
             stmt.setString(3, user.email());
             stmt.executeUpdate();
         } catch (SQLException e){
@@ -191,6 +192,7 @@ public class MySQLDataAccess implements DataAccess {
 
     @Override
     public int generateGameID() throws DataAccessException {
+
         return gameIdCounter.getAndIncrement();
     }
 
@@ -200,7 +202,7 @@ public class MySQLDataAccess implements DataAccess {
         deleteAllGames();
         deleteAllAuth();
         deleteAllUsers();
-        gameIdCounter.set(1);
+        gameIdCounter.set(1); // Reiniciar el contador de IDs de juego
     }
 
     @Override
@@ -229,4 +231,22 @@ public class MySQLDataAccess implements DataAccess {
             throw new DataAccessException("failed to delete all games " + e.getMessage());
         }
     }
+
+    @Override
+    public boolean isObserver(int gameID, String username) throws DataAccessException { // <-- ¡AÑADIDO!
+
+        GameData game = getGame(gameID);
+        if (game == null) {
+            return false;
+        }
+
+
+        if (Objects.equals(game.whiteUsername(), username) || Objects.equals(game.blackUsername(), username)) {
+            return false; // Es un jugador, no un observador.
+        }
+
+        UserData user = getUser(username);
+        return user != null;
+    }
+    // ----------------------------------------------------
 }

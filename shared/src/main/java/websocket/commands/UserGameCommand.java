@@ -2,38 +2,33 @@ package websocket.commands;
 
 import java.util.Objects;
 
-/**
- * Represents a command a user can send the server over a websocket
- *
- * Note: You can add to this class, but you should not alter the existing
- * methods.
- */
 public class UserGameCommand {
+    protected CommandType commandType;
+    protected String authToken;
+    protected Integer gameID;
+    protected String playerColor; // Nuevo campo para diferenciar JOIN_PLAYER de JOIN_OBSERVER
 
-    private final CommandType commandType;
-
-    private final String authToken;
-
-    private final Integer gameID;
-
-    public UserGameCommand(CommandType commandType, String authToken, Integer gameID) {
-        this.commandType = commandType;
+    // Constructor para comandos sin playerColor (como MAKE_MOVE, LEAVE, RESIGN)
+    public UserGameCommand(String authToken, CommandType commandType, Integer gameID) {
         this.authToken = authToken;
+        this.commandType = commandType;
         this.gameID = gameID;
+        this.playerColor = null; // Inicialmente nulo
     }
 
-    public enum CommandType {
-        CONNECT,
-        MAKE_MOVE,
-        LEAVE,
-        RESIGN
+    // Constructor para comandos de conexión que puedan tener playerColor
+    public UserGameCommand(String authToken, CommandType commandType, Integer gameID, String playerColor) {
+        this.authToken = authToken;
+        this.commandType = commandType;
+        this.gameID = gameID;
+        this.playerColor = playerColor;
     }
 
     public CommandType getCommandType() {
         return commandType;
     }
 
-    public String getAuthToken() {
+    public String getAuthString() {
         return authToken;
     }
 
@@ -41,22 +36,30 @@ public class UserGameCommand {
         return gameID;
     }
 
+    public String getPlayerColor() {
+        return playerColor;
+    }
+
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof UserGameCommand)) {
-            return false;
-        }
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         UserGameCommand that = (UserGameCommand) o;
-        return getCommandType() == that.getCommandType() &&
-                Objects.equals(getAuthToken(), that.getAuthToken()) &&
-                Objects.equals(getGameID(), that.getGameID());
+        return commandType == that.commandType &&
+                Objects.equals(authToken, that.authToken) &&
+                Objects.equals(gameID, that.gameID) &&
+                Objects.equals(playerColor, that.playerColor); // Incluye playerColor en equals
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getCommandType(), getAuthToken(), getGameID());
+        return Objects.hash(commandType, authToken, gameID, playerColor); // Incluye playerColor en hashCode
+    }
+
+    public enum CommandType {
+        CONNECT, // De vuelta a CONNECT
+        MAKE_MOVE,
+        LEAVE,
+        RESIGN
     }
 }
