@@ -1,4 +1,4 @@
-package webSocket;
+package websocket; // Reconfirmando el paquete
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -7,12 +7,12 @@ import dataaccess.DataAccessException;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.*;
 
-// ¡IMPORTANTE! Aquí se cambian las importaciones para que coincidan con tus paquetes
-import websocket.commands.UserGameCommand; // Asume que UserGameCommand está aquí
-import websocket.commands.MakeMoveCommand; // Si la usas directamente, aunque ahora la manejamos a través de UserGameCommand
-import websocket.messages.ErrorMessage;
+// ¡IMPORTANTE! Aquí se mantienen las importaciones que coinciden con tus paquetes
+import websocket.commands.UserGameCommand;
+import websocket.commands.MakeMoveCommand;
+import websocket.messages.ServerMessageError; // Usar tus nombres de clases concretas
 import websocket.messages.LoadGameMessage;
-import websocket.messages.NotificationMessage;
+import websocket.messages.ServerMessageNotification;
 import websocket.messages.ServerMessage; // La clase base ServerMessage
 
 import chess.ChessGame;
@@ -46,7 +46,6 @@ public class WebSocketHandler {
     public void onMessage(Session session, String message) throws IOException {
         System.out.println("Received message: " + message);
 
-        // Deserializa a la clase base UserGameCommand
         UserGameCommand baseCommand = gson.fromJson(message, UserGameCommand.class);
         Integer gameID = baseCommand.getGameID();
         String authToken = baseCommand.getAuthString();
@@ -56,7 +55,6 @@ public class WebSocketHandler {
             return;
         }
 
-        // Validación de gameID para comandos que lo requieren
         if (gameID == null && baseCommand.getCommandType() != UserGameCommand.CommandType.LEAVE &&
                 baseCommand.getCommandType() != UserGameCommand.CommandType.RESIGN &&
                 baseCommand.getCommandType() != UserGameCommand.CommandType.MAKE_MOVE) {
@@ -91,7 +89,6 @@ public class WebSocketHandler {
                     break;
 
                 case MAKE_MOVE:
-                    // Es seguro deserializar a MakeMoveCommand si el CommandType es MAKE_MOVE
                     MakeMoveCommand makeMoveCommand = gson.fromJson(message, MakeMoveCommand.class);
                     ChessMove move = makeMoveCommand.getMove();
                     if (move == null) {
@@ -156,7 +153,7 @@ public class WebSocketHandler {
     }
 
     private void sendError(Session session, String message) throws IOException {
-        ErrorMessage errorMessage = new ErrorMessage(message);
+        ServerMessageError errorMessage = new ServerMessageError(message);
         session.getRemote().sendString(gson.toJson(errorMessage));
     }
 
@@ -182,7 +179,7 @@ public class WebSocketHandler {
     private void sendNotificationToGame(int gameID, String excludeAuthToken, String message) throws IOException {
         Map<String, Session> sessions = gameSessions.get(gameID);
         if (sessions != null) {
-            NotificationMessage notification = new NotificationMessage(message);
+            ServerMessageNotification notification = new ServerMessageNotification(message);
             String notificationJson = gson.toJson(notification);
             for (Map.Entry<String, Session> entry : sessions.entrySet()) {
                 String authToken = entry.getKey();

@@ -6,20 +6,18 @@ public class UserGameCommand {
     protected CommandType commandType;
     protected String authToken;
     protected Integer gameID;
-    protected String playerColor; // Nuevo campo para diferenciar JOIN_PLAYER de JOIN_OBSERVER
+    protected String playerColor;
 
-    // Constructor para comandos sin playerColor (como MAKE_MOVE, LEAVE, RESIGN)
-    public UserGameCommand(String authToken, CommandType commandType, Integer gameID) {
-        this.authToken = authToken;
+    public UserGameCommand(CommandType commandType, String authToken, Integer gameID) {
         this.commandType = commandType;
+        this.authToken = authToken;
         this.gameID = gameID;
-        this.playerColor = null; // Inicialmente nulo
+        this.playerColor = null;
     }
 
-    // Constructor para comandos de conexión que puedan tener playerColor
-    public UserGameCommand(String authToken, CommandType commandType, Integer gameID, String playerColor) {
-        this.authToken = authToken;
+    public UserGameCommand(CommandType commandType, String authToken, Integer gameID, String playerColor) {
         this.commandType = commandType;
+        this.authToken = authToken;
         this.gameID = gameID;
         this.playerColor = playerColor;
     }
@@ -48,16 +46,16 @@ public class UserGameCommand {
         return commandType == that.commandType &&
                 Objects.equals(authToken, that.authToken) &&
                 Objects.equals(gameID, that.gameID) &&
-                Objects.equals(playerColor, that.playerColor); // Incluye playerColor en equals
+                Objects.equals(playerColor, that.playerColor);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(commandType, authToken, gameID, playerColor); // Incluye playerColor en hashCode
+        return Objects.hash(commandType, authToken, gameID, playerColor);
     }
 
     public enum CommandType {
-        CONNECT, // De vuelta a CONNECT
+        CONNECT,
         MAKE_MOVE,
         LEAVE,
         RESIGN

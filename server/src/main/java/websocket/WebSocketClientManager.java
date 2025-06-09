@@ -6,7 +6,10 @@ import com.google.gson.JsonObject;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import websocket.commands.UserGameCommand;
+import websocket.messages.LoadGameMessage;
 import websocket.messages.ServerMessage;
+import websocket.messages.ServerMessageError;
+import websocket.messages.ServerMessageNotification;
 
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
