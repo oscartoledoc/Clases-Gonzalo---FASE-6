@@ -10,20 +10,23 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import service.GameService;
 import websocket.commands.UserGameCommand;
 import websocket.messages.ServerMessage;
-import dataaccess.DataAccessException; // <--- Importa tu DataAccessException
+import dataaccess.DataAccessException;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import chess.ChessGame;
 import java.util.Objects;
+import websocket.messages.LoadGameMessage; // Importa LoadGameMessage
+import websocket.messages.ServerMessageNotification; // Importa ServerMessageNotification
+import websocket.messages.ServerMessageError; // Importa ServerMessageError
 
 @WebSocket
 public class WebSocketServer {
     private final GameService gameService;
     private final Map<String, Session> sessions = new HashMap<>();
     private final Map<Integer, Map<String, Session>> gameSessions = new HashMap<>();
-    private final Map<Session, String> sessionAuthTokens = new HashMap<>(); // Nuevo mapa
+    private final Map<Session, String> sessionAuthTokens = new HashMap<>();
 
     private final Gson gson = new Gson();
 
@@ -33,7 +36,6 @@ public class WebSocketServer {
 
     @OnWebSocketConnect
     public void onConnect(Session session) {
-
         System.out.println("New WebSocket connected: " + session.getRemoteAddress());
     }
 
@@ -42,7 +44,9 @@ public class WebSocketServer {
         String authToken = sessionAuthTokens.remove(session);
 
         if (authToken != null) {
+            // Remove from sessions map (if used)
             sessions.remove(authToken);
+            // Remove from all game sessions
             gameSessions.values().forEach(map -> map.remove(authToken));
             System.out.println("WebSocket closed for AuthToken: " + authToken + ", Reason: " + reason);
         } else {
@@ -55,7 +59,6 @@ public class WebSocketServer {
         try {
             UserGameCommand command = gson.fromJson(message, UserGameCommand.class);
 
-            // Si el comando es CONNECT, procesa AuthToken y GameID
             if (command.getCommandType() == UserGameCommand.CommandType.CONNECT) {
                 String authToken = command.getAuthString();
                 Integer gameID = command.getGameID();
@@ -66,18 +69,20 @@ public class WebSocketServer {
                     return;
                 }
 
+                // Validar el AuthToken antes de proceder
+                gameService.getUsernameFromAuth(authToken); // Esto lanzará DataAccessException si es inválido
+
                 sessions.put(authToken, session);
                 gameSessions.computeIfAbsent(gameID, k -> new HashMap<>()).put(authToken, session);
-                sessionAuthTokens.put(session, authToken); // Guardar la asociación Sesión -> AuthToken
+                sessionAuthTokens.put(session, authToken);
 
-                // Lógica de conexión inicial, enviar LOAD_GAME
-                sendMessage(session, new ServerMessage(ServerMessage.ServerMessageType.LOAD_GAME), authToken, gameID);
-                broadcastNotification(gameID, authToken + " joined game", session);
+                // El mensaje de carga de juego se enviará a través de sendMessage, que ahora puede lanzar DataAccessException
+                sendMessage(session, new LoadGameMessage(gameService.getGameState(gameID, authToken)), authToken, gameID);
+                broadcastNotification(gameID, gameService.getUsernameFromAuth(authToken) + " joined game as " + command.getPlayerColor(), session);
 
             } else {
-                // Para cualquier otro comando, requiere que la sesión ya esté conectada y tenga su authToken y gameID
-                String authToken = sessionAuthTokens.get(session); // Obtener el token de la sesión actual
-                Integer gameID = getGameIDForAuthToken(authToken); // Necesitas un método para obtener el gameID a partir del AuthToken
+                String authToken = sessionAuthTokens.get(session);
+                Integer gameID = getGameIDForAuthToken(authToken);
 
                 if (authToken == null || gameID == null) {
                     sendError(session, "Error: Not connected to a game or missing authentication for command: " + command.getCommandType());
@@ -85,91 +90,87 @@ public class WebSocketServer {
                     return;
                 }
 
+                // Asegúrate de que el usuario está autorizado para el comando (ej: es un jugador o observador)
+                // Dependiendo del comando, podrías necesitar más validaciones aquí.
+                gameService.getUsernameFromAuth(authToken); // Validar authToken para cualquier comando
+                gameService.getGameState(gameID, authToken); // Validar que el juego existe y el usuario tiene acceso
+
                 switch (command.getCommandType()) {
                     case MAKE_MOVE:
-                        // La lógica de makeMove debe ser llamada con el ChessMove del comando
-                        ChessMove move = gson.fromJson(message, ChessMove.class); // Esto asume que el mensaje completo incluye el move
-                        // Mejor: el UserGameCommand debería tener un campo ChessMove.
-                        // UserGameCommand moveCommand = (UserGameCommand) command;
-                        // gameService.makeMove(gameID, authToken, moveCommand.getChessMove());
-
-                        // Si tu TestCommand no deserializa bien el ChessMove directamente en UserGameCommand
-                        // puedes tener que hacer una clase de comando específica para MAKE_MOVE
-                        // o extraerlo con un JsonParser.
-                        // Por ahora, asumimos que UserGameCommand ya tiene el move.
-
-                        // Si UserGameCommand NO tiene ChessMove, necesitas extraerlo del JSON:
-                        // JsonObject jsonObject = gson.fromJson(message, JsonObject.class);
-                        // ChessMove move = gson.fromJson(jsonObject.get("chessMove"), ChessMove.class); // Ajusta el nombre del campo
-
-                        broadcastLoadGame(gameID, authToken); // Notifica a todos el nuevo estado del juego
+                        // La deserialización del move debe hacerse dentro de la clase de comando específica si es necesario.
+                        // Para este ejemplo, asumo que ChessMove está directamente en UserGameCommand o se puede obtener.
+                        // Si UserGameCommand es solo un wrapper, necesitarás una clase específica para MAKE_MOVE.
+                        // Asumiendo que UserGameCommand tiene un campo 'move':
+                        // MakeMoveCommand makeMoveCommand = gson.fromJson(message, MakeMoveCommand.class);
+                        // gameService.makeMove(gameID, authToken, makeMoveCommand.getMove());
                         break;
                     case RESIGN:
                         gameService.resign(gameID, authToken);
-                        broadcastNotification(gameID, authToken + " resigned.", session);
+                        broadcastNotification(gameID, gameService.getUsernameFromAuth(authToken) + " resigned.", session);
+                        broadcastLoadGame(gameID, authToken); // El juego cambió de estado (terminado)
                         break;
                     case LEAVE:
-                        // Eliminar de los mapas de sesiones
-                        sessions.remove(authToken);
-                        gameSessions.get(gameID).remove(authToken); // Remueve la sesión de ese juego específico
-                        sessionAuthTokens.remove(session); // Remueve también de este mapa
+                        String leavingUsername = gameService.getUsernameFromAuth(authToken);
+                        gameService.leaveGame(gameID, authToken); // Llama al método del servicio para manejar la lógica de abandono
 
-                        broadcastNotification(gameID, authToken + " left the game.", session);
-                        // Considera cerrar la sesión aquí si el usuario "sale"
-                        // session.close(1000, "User left game");
+                        // Eliminar de los mapas de sesiones (solo si la lógica de servicio lo permite)
+                        sessions.remove(authToken);
+                        Map<String, Session> currentUsersInGame = gameSessions.get(gameID);
+                        if (currentUsersInGame != null) {
+                            currentUsersInGame.remove(authToken);
+                            if (currentUsersInGame.isEmpty()) {
+                                gameSessions.remove(gameID); // Si no quedan usuarios en el juego, elimina la entrada del juego
+                            }
+                        }
+                        sessionAuthTokens.remove(session);
+
+                        broadcastNotification(gameID, leavingUsername + " left the game.", session);
+                        // No cierres la sesión aquí a menos que sea un requisito específico,
+                        // el cliente debería manejar el cierre después de recibir la notificación.
                         break;
                     default:
                         sendError(session, "Error: Unknown command type: " + command.getCommandType());
                         break;
                 }
             }
+        } catch (DataAccessException e) {
+            // ¡Captura DataAccessException aquí y envía un mensaje de ERROR al cliente!
+            sendError(session, "Error: " + e.getMessage());
+            System.err.println("DataAccessException in OnMessage: " + e.getMessage());
+            e.printStackTrace(); // Para depuración
         } catch (Exception e) {
-            sendError(session, "Error processing command: " + e.getMessage());
-            System.err.println("Exception in OnMessage: " + e.getMessage());
-            e.printStackTrace();
+            // Captura cualquier otra excepción inesperada
+            sendError(session, "Error interno del servidor: " + e.getMessage());
+            System.err.println("Unexpected Exception in OnMessage: " + e.getMessage());
+            e.printStackTrace(); // Para depuración
         }
     }
 
-    // --- Métodos auxiliares (sin cambios drásticos, pero revisar) ---
+    // --- Métodos auxiliares ---
 
-    private void sendMessage(Session session, ServerMessage message, String authToken, Integer gameID) {
+    // Modificado para que no capture DataAccessException internamente
+    private void sendMessage(Session session, ServerMessage message, String authToken, Integer gameID) throws IOException, DataAccessException {
         if (session != null && session.isOpen()) {
-            try {
-                String fullMessageJson;
-                if (message.getServerMessageType() == ServerMessage.ServerMessageType.LOAD_GAME) {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("serverMessageType", message.getServerMessageType().toString());
-                    // Asegúrate de que gameService.getGameState(gameID, authToken) retorna un objeto ChessGame
-                    // que GSON puede serializar, NO una cadena JSON.
-                    map.put("game", gameService.getGameState(gameID, authToken));
-                    fullMessageJson = gson.toJson(map);
-                } else {
-                    // Para NOTIFICATION o ERROR, la estructura JSON debe coincidir con tus clases LoadGameMessage, ServerMessageNotification, ServerMessageError en el cliente.
-                    // Si ServerMessage solo tiene el tipo, y el mensaje/error va en una subclase,
-                    // necesitas construir el objeto correcto aquí.
-                    // Ejemplo para NOTIFICATION:
-                    // if (message.getServerMessageType() == ServerMessage.ServerMessageType.NOTIFICATION) {
-                    //    fullMessageJson = gson.toJson(new ServerMessageNotification("Some notification message")); // Necesitas el mensaje real
-                    // }
-                    fullMessageJson = gson.toJson(message); // Esto funciona si message ya es la subclase correcta (e.g., ServerMessageNotification)
-                }
-                session.getRemote().sendString(fullMessageJson);
-            } catch (Exception e) {
-                System.err.println("Error sending message: " + e.getMessage());
+            String fullMessageJson;
+            if (message.getServerMessageType() == ServerMessage.ServerMessageType.LOAD_GAME) {
+                // Asegúrate de que LoadGameMessage ya tiene el objeto ChessGame
+                // o pasas ChessGame directamente aquí.
+                // Ya que LoadGameMessage(ChessGame game) lo construye, aquí solo serializamos.
+                fullMessageJson = gson.toJson(message); // message es ya una instancia de LoadGameMessage
+            } else {
+                fullMessageJson = gson.toJson(message);
             }
+            session.getRemote().sendString(fullMessageJson);
         }
     }
 
     private void broadcastNotification(Integer gameID, String message, Session excludedSession) {
         Map<String, Session> gameSessionMap = this.gameSessions.get(gameID);
         if (gameSessionMap != null) {
-            Map<String, Object> notificationPayload = new HashMap<>();
-            notificationPayload.put("serverMessageType", ServerMessage.ServerMessageType.NOTIFICATION.toString());
-            notificationPayload.put("message", message); // El mensaje de la notificación
-            String notificationJson = gson.toJson(notificationPayload);
+            ServerMessageNotification notification = new ServerMessageNotification(message);
+            String notificationJson = gson.toJson(notification);
 
             for (Session session : gameSessionMap.values()) {
-                // Asegúrate de que la sesión excluida sea correcta y de que la sesión esté abierta.
                 if (session != excludedSession && session.isOpen()) {
                     try {
                         session.getRemote().sendString(notificationJson);
@@ -181,27 +182,14 @@ public class WebSocketServer {
         }
     }
 
-    private void broadcastLoadGame(Integer gameID, String currentAuthToken) {
+    // Modificado para que no capture DataAccessException internamente, y para usar LoadGameMessage
+    private void broadcastLoadGame(Integer gameID, String currentAuthToken) throws DataAccessException {
         Map<String, Session> gameSessionMap = this.gameSessions.get(gameID);
         if (gameSessionMap != null) {
-            Object gameState = null; // Inicializar a null
-            try {
-                gameState = gameService.getGameState(gameID, currentAuthToken); // <--- Aquí es donde se puede lanzar la excepción
-            } catch (DataAccessException e) {
-                System.err.println("DataAccessException while trying to get game state for broadcast: " + e.getMessage());
-                // Podrías enviar un error a cada sesión del juego si no se pudo obtener el estado
-                // Aunque si ya se lanzó la excepción, el estado del juego no está disponible
-                // Podrías decidir no broadcast si el estado no se puede obtener.
-                // O enviar un mensaje de error a cada cliente afectado si es crítico.
-                // Por simplicidad, si hay un error al obtener el estado, no broadcast el LOAD_GAME.
-                return; // Salir del método si no se puede obtener el estado del juego.
-            }
+            ChessGame gameState = gameService.getGameState(gameID, currentAuthToken); // Esto puede lanzar DataAccessException
 
-            // Si llegamos aquí, gameState no es null (o es lo que sea que getGameState devuelva en caso de éxito)
-            Map<String, Object> loadGamePayload = new HashMap<>();
-            loadGamePayload.put("serverMessageType", ServerMessage.ServerMessageType.LOAD_GAME.toString());
-            loadGamePayload.put("game", gameState);
-            String loadGameJson = gson.toJson(loadGamePayload);
+            LoadGameMessage loadGame = new LoadGameMessage(gameState);
+            String loadGameJson = gson.toJson(loadGame);
 
             for (Session session : gameSessionMap.values()) {
                 if (session.isOpen()) {
@@ -218,33 +206,23 @@ public class WebSocketServer {
     private void sendError(Session session, String errorMessage) {
         if (session != null && session.isOpen()) {
             try {
-                Map<String, String> errorPayload = new HashMap<>();
-                errorPayload.put("serverMessageType", ServerMessage.ServerMessageType.ERROR.toString());
-                errorPayload.put("errorMessage", errorMessage);
-                session.getRemote().sendString(gson.toJson(errorPayload));
+                ServerMessageError error = new ServerMessageError(errorMessage);
+                session.getRemote().sendString(gson.toJson(error));
             } catch (IOException e) {
                 System.err.println("Error sending error message: " + e.getMessage());
             }
         }
     }
 
-    // Ya no se usan directamente para obtener parámetros de la URL.
-    // Solo se usarán para buscar gameID a partir de authToken (si es necesario)
-    // o simplemente se eliminan si no hay otros usos.
     private String getAuthTokenFromSession(Session session) {
-        // Ahora el AuthToken se obtiene de sessionAuthTokens mapa.
         return sessionAuthTokens.get(session);
     }
 
     private Integer getGameIDFromSession(Session session) {
-        // Necesitarías una forma de obtener el gameID dado una Session.
-        // Esto podría ser un problema si una sesión no está en gameSessions.
-        // La forma más robusta es tener un mapa Session -> GameID.
         String authToken = sessionAuthTokens.get(session);
-        return getGameIDForAuthToken(authToken); // Llama al nuevo método
+        return getGameIDForAuthToken(authToken);
     }
 
-    // Nuevo método para obtener el GameID dado un AuthToken
     private Integer getGameIDForAuthToken(String authToken) {
         for (Map.Entry<Integer, Map<String, Session>> entry : gameSessions.entrySet()) {
             if (entry.getValue().containsKey(authToken)) {
@@ -256,7 +234,7 @@ public class WebSocketServer {
 
     public void start(int port) {
         spark.Spark.port(port);
-        spark.Spark.webSocket("/connect", WebSocketServer.class); // Ruta debe coincidir con Server.java
+        spark.Spark.webSocket("/ws", WebSocketServer.class); // Asegúrate de que la ruta coincida con tu Server.java
         spark.Spark.init();
     }
 
