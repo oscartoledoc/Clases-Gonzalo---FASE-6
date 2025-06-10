@@ -278,10 +278,12 @@ public class GameService {
             throw new DataAccessException("Bad Request: User is not in this game.");
         }
 
-        // Si un jugador abandona y el juego no ha terminado, se marca como terminado
-        if (wasPlayer && !chessGame.isGameOver()) {
-            chessGame.setGameOver(true);
-        }
+        // --- ¡CAMBIO IMPORTANTE AQUÍ! ---
+        // Se elimina la línea que marcaba el juego como terminado al abandonar.
+        // if (wasPlayer && !chessGame.isGameOver()) {
+        //     chessGame.setGameOver(true);
+        // }
+        // ----------------------------------
 
         GameData updatedGameData = new GameData(
                 gameId,
