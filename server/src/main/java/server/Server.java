@@ -34,21 +34,17 @@ public class Server {
         } catch (DataAccessException e) {
             throw new RuntimeException("Unable to connect to database", e);
         }
-
-
     }
 
     public int run(int desiredPort) {
         Spark.port(desiredPort);
 
-        Spark.webSocket("/ws", webSocketServer); // <-- ¡Cambia de WebSocketServer.class a webSocketServer!
+        Spark.webSocket("/ws", webSocketServer);
 
         Spark.staticFiles.location("web");
 
-        // Register your endpoints and handle exceptions here.
         registerEndpoints();
 
-        // This line initializes the server and can be removed once you have a functioning endpoint
         Spark.init();
 
         Spark.awaitInitialization();

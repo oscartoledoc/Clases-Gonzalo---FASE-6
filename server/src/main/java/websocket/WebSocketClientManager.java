@@ -21,7 +21,6 @@ public class WebSocketClientManager {
     private WebSocketClientEndpoint endpoint;
     private boolean isRunning = false;
 
-    // Nuevo: Guardar authToken y gameId para enviarlos en el primer mensaje
     private String currentAuthToken;
     private Integer currentGameID;
 
@@ -38,7 +37,6 @@ public class WebSocketClientManager {
             isRunning = true;
         } catch (Exception e) {
             System.err.println("Error starting WebSocketClient: " + e.getMessage());
-            // Manejar error de inicialización
         }
     }
 
@@ -47,23 +45,18 @@ public class WebSocketClientManager {
     }
 
     public void connect(String wsUrl, String authToken, String gameId) throws Exception {
-        // Almacenar el authToken y gameId.
         this.currentAuthToken = authToken;
-        this.currentGameID = Integer.parseInt(gameId); // Asume que gameId siempre es parseable.
+        this.currentGameID = Integer.parseInt(gameId);
 
-        URI uri = new URI(wsUrl); // La URL ya no necesita los parámetros aquí.
+        URI uri = new URI(wsUrl);
 
         endpoint = new WebSocketClientEndpoint();
-        // Configura el manejador de mensajes ANTES de conectar.
         endpoint.setMessageHandler(this::handleMessage);
 
         ClientUpgradeRequest request = new ClientUpgradeRequest();
 
-        // Conectar al servidor WebSocket
         client.connect(endpoint, uri, request).get(5, TimeUnit.SECONDS);
 
-        // ¡IMPORTANTE! Enviar el comando CONNECT después de establecer la conexión
-        // Esto es lo que tu servidor ahora espera como primer mensaje.
         sendCommand(new UserGameCommand(UserGameCommand.CommandType.CONNECT, currentAuthToken, currentGameID));
     }
 
@@ -77,7 +70,7 @@ public class WebSocketClientManager {
                 client = null;
                 endpoint = null;
                 isRunning = false;
-                currentAuthToken = null; // Limpiar datos de la sesión
+                currentAuthToken = null;
                 currentGameID = null;
             }
         }

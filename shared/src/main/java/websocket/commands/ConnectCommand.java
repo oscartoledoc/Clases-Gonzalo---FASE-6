@@ -1,12 +1,12 @@
 package websocket.commands;
 
-import chess.ChessGame; // Necesario para ChessGame.TeamColor
+import chess.ChessGame;
 
 public class ConnectCommand extends UserGameCommand {
-    private final ChessGame.TeamColor playerColor; // Usar el tipo correcto de ChessGame
+    private final ChessGame.TeamColor playerColor;
 
     public ConnectCommand(String authToken, Integer gameID, ChessGame.TeamColor playerColor) {
-        super(CommandType.CONNECT, authToken, gameID); // Llama al constructor de la clase base
+        super(CommandType.CONNECT, authToken, gameID);
         this.playerColor = playerColor;
     }
 

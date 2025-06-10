@@ -107,7 +107,6 @@ public class WebSocketHandler {
                     gameService.makeMove(gameID, authToken, move);
 
                     sendLoadGameToAllInGame(gameID, authToken);
-                    // LÍNEA ELIMINADA: sendNotificationToGame(gameID, null, movingUsername + " made a move: " + move.toString() + ".");
                     break;
 
                 case RESIGN:

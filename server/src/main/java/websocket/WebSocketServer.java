@@ -27,10 +27,10 @@ import java.util.Objects;
 @WebSocket
 public class WebSocketServer {
     private final GameService gameService;
-    private final Map<String, Session> sessions = new HashMap<>(); // authToken -> Session
-    private final Map<Integer, Map<String, Session>> gameSessions = new HashMap<>(); // gameID -> authToken -> Session
-    private final Map<Session, String> sessionAuthTokens = new HashMap<>(); // session -> authToken
-    private final Map<String, Integer> authTokenGameIds = new HashMap<>(); // authToken -> gameID
+    private final Map<String, Session> sessions = new HashMap<>();
+    private final Map<Integer, Map<String, Session>> gameSessions = new HashMap<>();
+    private final Map<Session, String> sessionAuthTokens = new HashMap<>();
+    private final Map<String, Integer> authTokenGameIds = new HashMap<>();
 
     private final Gson gson = new Gson();
 
@@ -117,9 +117,8 @@ public class WebSocketServer {
                     ChessMove move = makeMoveCommand.getMove();
                     gameService.makeMove(gameID, authToken, move);
 
-                    broadcastLoadGame(gameID, authToken); // Carga el juego para TODOS, incluyendo el que hizo el movimiento
+                    broadcastLoadGame(gameID, authToken);
 
-                    // ¡CAMBIO IMPORTANTE AQUÍ! Pasa la sesión actual para excluirla de la notificación
                     broadcastNotification(gameID, movingUsername + " made a move.", session);
                     break;
 
@@ -134,9 +133,7 @@ public class WebSocketServer {
                     }
                     String resigningUsername = gameService.getUsernameFromAuth(authToken);
                     gameService.resign(gameID, authToken);
-                    // Aquí, el test espera que el resignado reciba la notificación. Si el test falla, ajusta 'null' a 'session'
                     broadcastNotification(gameID, resigningUsername + " resigned.", null);
-                    //broadcastLoadGame(gameID, authToken); // El juego cambió de estado (terminado)
                     break;
 
                 case LEAVE:

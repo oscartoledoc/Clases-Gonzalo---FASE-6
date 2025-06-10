@@ -202,7 +202,7 @@ public class MySQLDataAccess implements DataAccess {
         deleteAllGames();
         deleteAllAuth();
         deleteAllUsers();
-        gameIdCounter.set(1); // Reiniciar el contador de IDs de juego
+        gameIdCounter.set(1);
     }
 
     @Override
@@ -233,7 +233,7 @@ public class MySQLDataAccess implements DataAccess {
     }
 
     @Override
-    public boolean isObserver(int gameID, String username) throws DataAccessException { // <-- ¡AÑADIDO!
+    public boolean isObserver(int gameID, String username) throws DataAccessException {
 
         GameData game = getGame(gameID);
         if (game == null) {
@@ -242,11 +242,10 @@ public class MySQLDataAccess implements DataAccess {
 
 
         if (Objects.equals(game.whiteUsername(), username) || Objects.equals(game.blackUsername(), username)) {
-            return false; // Es un jugador, no un observador.
+            return false;
         }
 
         UserData user = getUser(username);
         return user != null;
     }
-    // ----------------------------------------------------
 }

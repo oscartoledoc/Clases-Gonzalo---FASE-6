@@ -4,9 +4,9 @@ import dataaccess.DataAccessException;
 import dataaccess.DataAccess;
 import model.*;
 
-import service.Results.*; // Si tienes clases de resultados en este paquete
-import chess.*; // Importa todas las clases de ajedrez (ChessGame, ChessMove, ChessPiece, ChessBoard)
-import chess.InvalidMoveException; // <-- ¡IMPORTANTE! Asegúrate de importar esta excepción
+import service.Results.*;
+import chess.*;
+import chess.InvalidMoveException;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -16,20 +16,16 @@ import java.util.Objects;
 public class GameService {
 
     private final DataAccess dataaccess;
-    // activeGames es un caché en memoria de los objetos ChessGame para acceso rápido.
-    // Necesita ser consistente con los GameData persistidos en la DB/MemoryDataAccess.
     private final Map<Integer, ChessGame> activeGames = new HashMap<>();
 
     public GameService(DataAccess dataaccess) {
         this.dataaccess = dataaccess;
     }
 
-    // Helper para validar AuthToken
     private boolean isValidAuthToken(String authToken) throws DataAccessException {
         return dataaccess.getAuth(authToken) != null;
     }
 
-    // Helper para obtener el nombre de usuario desde el token
     public String getUsernameFromAuth(String authToken) throws DataAccessException {
         AuthData authData = dataaccess.getAuth(authToken);
         if (authData == null) {
@@ -70,7 +66,7 @@ public class GameService {
 
         GameData gameData = dataaccess.getGame(gameID);
         if (gameData == null) {
-            throw new DataAccessException("Bad game ID: Invalid game"); // Mensaje de error más específico
+            throw new DataAccessException("Bad game ID: Invalid game");
         }
 
         ChessGame currentChessGame = activeGames.get(gameID);
@@ -88,27 +84,22 @@ public class GameService {
 
         if ("white".equalsIgnoreCase(playerColor)) {
             if (whiteUsername != null && !whiteUsername.equals(username)) {
-                throw new DataAccessException("Already taken"); // Mensaje de error para color ya tomado
+                throw new DataAccessException("Already taken");
             }
             whiteUsername = username;
         } else if ("black".equalsIgnoreCase(playerColor)) {
             if (blackUsername != null && !blackUsername.equals(username)) {
-                throw new DataAccessException("Already taken"); // Mensaje de error para color ya tomado
+                throw new DataAccessException("Already taken");
             }
             blackUsername = username;
         } else if (!"observer".equalsIgnoreCase(playerColor)) {
             throw new DataAccessException("Bad Request: Invalid Color");
         }
 
-        // Si ya es un jugador de este color o un observador, no hacer nada (idempotencia)
         if (Objects.equals(gameData.whiteUsername(), username) && "white".equalsIgnoreCase(playerColor)) {
-            // Ya es blanco
         } else if (Objects.equals(gameData.blackUsername(), username) && "black".equalsIgnoreCase(playerColor)) {
-            // Ya es negro
         } else if (dataaccess.isObserver(gameID, username) && "observer".equalsIgnoreCase(playerColor)) {
-            // Ya es observador
         } else {
-            // Actualizar GameData y persistir
             GameData updatedGameData = new GameData(
                     gameID,
                     whiteUsername,
@@ -130,7 +121,7 @@ public class GameService {
 
         GameData gameData = dataaccess.getGame(gameId);
         if (gameData == null) {
-            throw new DataAccessException("Bad game ID: Invalid game"); // Mensaje de error más específico
+            throw new DataAccessException("Bad game ID: Invalid game");
         }
 
         ChessGame chessGame = activeGames.get(gameId);
@@ -187,7 +178,7 @@ public class GameService {
             throw new DataAccessException("Bad Request: Not your turn!");
         }
 
-        chessGame.makeMove(move); // ChessGame ya debería lanzar InvalidMoveException
+        chessGame.makeMove(move);
 
         GameData updatedGameData = new GameData(
                 gameId,
@@ -228,7 +219,7 @@ public class GameService {
             throw new DataAccessException("Bad Request: Cannot resign: Game is already over.");
         }
 
-        chessGame.setGameOver(true); // Marca el juego como terminado
+        chessGame.setGameOver(true);
 
         GameData updatedGameData = new GameData(
                 gameId,
@@ -273,17 +264,9 @@ public class GameService {
             wasPlayer = true;
         }
 
-        // Si no era jugador y no era observador, significa que no estaba en el juego
         if (!wasPlayer && !dataaccess.isObserver(gameId, username)) {
             throw new DataAccessException("Bad Request: User is not in this game.");
         }
-
-        // --- ¡CAMBIO IMPORTANTE AQUÍ! ---
-        // Se elimina la línea que marcaba el juego como terminado al abandonar.
-        // if (wasPlayer && !chessGame.isGameOver()) {
-        //     chessGame.setGameOver(true);
-        // }
-        // ----------------------------------
 
         GameData updatedGameData = new GameData(
                 gameId,
