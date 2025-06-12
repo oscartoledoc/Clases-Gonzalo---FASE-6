@@ -193,6 +193,7 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
                         "Resign - Renuncia al juego");
                 break;
             case "redraw":
+                // Redibujar el tablero con la perspectiva actual del jugador
                 drawChessBoard(currentBoard, currentPlayerColor != null ? currentPlayerColor : ChessGame.TeamColor.WHITE);
                 break;
             case "leave":
@@ -200,10 +201,11 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
                 break;
             case "make":
                 if (args.startsWith("move")) {
+                    // Extraer los argumentos reales del movimiento, saltando "move"
                     String moveArgs = "";
                     String[] splitArgs = args.split(" ", 2);
                     if (splitArgs.length > 1) {
-                        moveArgs = splitArgs[1].trim(); // Obtener "e2 e4" de "move e2 e4"
+                        moveArgs = splitArgs[1].trim();
                     }
                     makeMove(scanner, moveArgs);
                 } else {
@@ -357,7 +359,7 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
 
             this.wsClient = new WebSocketClientManager(serverURL, this);
 
-            ConnectCommand connectCommand = new ConnectCommand(authToken, gameID, null); // playerColor es null para observador
+            ConnectCommand connectCommand = new ConnectCommand(authToken, gameID, null);
             wsClient.sendCommand(connectCommand);
 
             this.inGame = true;
@@ -444,10 +446,11 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
         this.isRunning = false;
     }
 
+    // *** INICIO DE SECCIÓN DE DIBUJO DEL TABLERO ***
     private void drawChessBoard(ChessBoard board, ChessGame.TeamColor playerPerspective) {
         System.out.print(EscapeSequences.ERASE_SCREEN);
         System.out.print(EscapeSequences.SET_CURSOR_TO_HOME_POSITION);
-        System.out.print(EscapeSequences.RESET_ALL);
+        System.out.print(EscapeSequences.RESET_ALL); // Siempre resetear al inicio para una pizarra limpia
 
         boolean isWhitePerspective = (playerPerspective == ChessGame.TeamColor.WHITE);
 
@@ -459,60 +462,76 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
         int endCol = isWhitePerspective ? 8 : 1;
         int colIncrement = isWhitePerspective ? 1 : -1;
 
+        // Imprimir encabezado de columnas (letras 'a' a 'h')
+        // El espacio inicial para la columna de los números de fila
         System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + EscapeSequences.SET_TEXT_COLOR_WHITE + "   ");
         for (int col = startCol; isWhitePerspective ? col <= endCol : col >= endCol; col += colIncrement) {
-            System.out.print(" " + (char) ('a' + col - 1) + " ");
+            // Cada letra ocupa 3 caracteres (" a ", " b ", etc.) y se resetea para evitar fugas de color.
+            System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + " " + (char) ('a' + col - 1) + " " + EscapeSequences.RESET_ALL);
         }
-        System.out.println(EscapeSequences.RESET_ALL);
+        System.out.println(); // Salto de línea después de la fila de encabezado
 
         for (int r = startRow; isWhitePerspective ? r >= endRow : r <= endRow; r += rowIncrement) {
+            // Imprimir número de fila (ej. " 8 ", 3 caracteres) con fondo gris y texto blanco, luego RESET_ALL
             System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + EscapeSequences.SET_TEXT_COLOR_WHITE + " " + r + " " + EscapeSequences.RESET_ALL);
 
             for (int c = startCol; isWhitePerspective ? c <= endCol : c >= endCol; c += colIncrement) {
                 ChessPosition position = new ChessPosition(r, c);
                 ChessPiece piece = board.getPiece(position);
 
-                boolean isLightSquare = (r + c) % 2 != 0;
-                String bgColor = isLightSquare ? EscapeSequences.SET_BG_COLOR_LIGHT_GREY : EscapeSequences.SET_BG_COLOR_BRIGHT_GREEN;
+                boolean isLightSquare = (r + c) % 2 != 0; // Alternar color del cuadrado
+                String bgColor = isLightSquare ? EscapeSequences.SET_BG_COLOR_LIGHT_GREY : EscapeSequences.SET_BG_COLOR_DARK_GREEN; // Usamos DARK_GREEN para las casillas "negras"
 
-                System.out.print(bgColor);
+                System.out.print(bgColor); // Aplica el color de fondo para la casilla
+
+                // getPieceSymbol ahora devuelve el símbolo ya con su color de texto y padding
                 String pieceSymbol = getPieceSymbol(piece);
-                System.out.print(pieceSymbol);
+
+                System.out.print(pieceSymbol); // Imprime el símbolo ya coloreado y con padding
+
+                System.out.print(EscapeSequences.RESET_BG_COLOR);
             }
+            // Al final de cada fila de casillas, restablecemos *todo* (texto y fondo)
+            // para la siguiente línea, asegurando que no queden colores activos.
             System.out.println(EscapeSequences.RESET_ALL);
         }
 
-        // Imprimir pie de página de columnas
+        // Imprimir pie de página de columnas (letras 'a' a 'h')
+        // Mismo formato que el encabezado, incluyendo el espacio inicial de 3 caracteres.
         System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + EscapeSequences.SET_TEXT_COLOR_WHITE + "   ");
         for (int col = startCol; isWhitePerspective ? col <= endCol : col >= endCol; col += colIncrement) {
-            System.out.print(" " + (char) ('a' + col - 1) + " ");
+            System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + " " + (char) ('a' + col - 1) + " " + EscapeSequences.RESET_ALL);
         }
-        System.out.println(EscapeSequences.RESET_ALL);
-        System.out.print(EscapeSequences.RESET_ALL);
+        System.out.println(); // Salto de línea después de la fila de pie de página
+        System.out.print(EscapeSequences.RESET_ALL); // Un reset final para la terminal
     }
 
+    // getPieceSymbol: Ahora devuelve el símbolo Unicode de la pieza CON SU COLOR DE TEXTO
+    // y el padding ya incluido por las constantes de EscapeSequences (ej. " ♔ ").
     private String getPieceSymbol(ChessPiece piece) {
         if (piece == null) {
-            return EscapeSequences.EMPTY;
+            return EscapeSequences.EMPTY; // Devuelve el espacio en-quad ya con padding
         }
 
         ChessGame.TeamColor color = piece.getTeamColor();
         ChessPiece.PieceType type = piece.getPieceType();
 
-        String pieceColorCode = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.SET_TEXT_COLOR_WHITE : EscapeSequences.SET_TEXT_COLOR_BLACK;
+        String pieceSymbolText;
+        String textColor = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.SET_TEXT_COLOR_WHITE : EscapeSequences.SET_TEXT_COLOR_BLACK;
 
-        String symbol;
         switch (type) {
-            case PAWN: symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_PAWN : EscapeSequences.BLACK_PAWN; break;
-            case KNIGHT: symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_KNIGHT : EscapeSequences.BLACK_KNIGHT; break;
-            case BISHOP: symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_BISHOP : EscapeSequences.BLACK_BISHOP; break;
-            case ROOK: symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_ROOK : EscapeSequences.BLACK_ROOK; break;
-            case QUEEN: symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_QUEEN : EscapeSequences.BLACK_QUEEN; break;
-            case KING: symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_KING : EscapeSequences.BLACK_KING; break;
-            default: symbol = EscapeSequences.EMPTY;
+            case PAWN: pieceSymbolText = color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_PAWN : EscapeSequences.BLACK_PAWN; break;
+            case KNIGHT: pieceSymbolText = color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_KNIGHT : EscapeSequences.BLACK_KNIGHT; break;
+            case BISHOP: pieceSymbolText = color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_BISHOP : EscapeSequences.BLACK_BISHOP; break;
+            case ROOK: pieceSymbolText = color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_ROOK : EscapeSequences.BLACK_ROOK; break;
+            case QUEEN: pieceSymbolText = color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_QUEEN : EscapeSequences.BLACK_QUEEN; break;
+            case KING: pieceSymbolText = color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_KING : EscapeSequences.BLACK_KING; break;
+            default: pieceSymbolText = EscapeSequences.EMPTY; // Debería ser inalcanzable si todos los tipos están cubiertos
         }
-        return pieceColorCode + symbol + EscapeSequences.RESET_TEXT_COLOR;
+        // Retorna el símbolo de la pieza con su color de texto aplicado y reseteado
+        return textColor + pieceSymbolText + EscapeSequences.RESET_TEXT_COLOR;
     }
+    // *** FIN DE SECCIÓN DE DIBUJO DEL TABLERO ***
 
     private ChessPosition parsePosition(String posStr) {
         if (posStr == null || posStr.length() != 2) {
