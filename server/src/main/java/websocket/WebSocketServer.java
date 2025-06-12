@@ -276,20 +276,11 @@ public class WebSocketServer {
         return moveStr;
     }
 
-    public void start(int port) {
-        Spark.port(port);
-        Spark.webSocket("/ws", WebSocketServer.class); // Endpoint correcto
-        Spark.init();
-        System.out.println("Servidor WebSocket iniciado en el puerto " + port);
-    }
-
     public void stop() {
-        Spark.stop();
-        Spark.awaitStop();
         sessions.clear();
         gameSessions.clear();
         sessionAuthTokens.clear();
         authTokenGameIds.clear();
-        System.out.println("Servidor WebSocket detenido.");
+        System.out.println("Estado interno de WebSocketServer detenido.");
     }
 }

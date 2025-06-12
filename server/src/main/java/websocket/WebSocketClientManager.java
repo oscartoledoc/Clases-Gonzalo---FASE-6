@@ -10,7 +10,7 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import websocket.commands.UserGameCommand;
-import websocket.commands.ConnectCommand; // Asegúrate de que esta clase exista
+import websocket.commands.ConnectCommand;
 import websocket.messages.ServerMessage;
 import websocket.messages.ServerMessageError;
 import websocket.messages.ServerMessageNotification;
@@ -19,10 +19,10 @@ import websocket.messages.LoadGameMessage;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.concurrent.ExecutionException; // Importar para manejar excepciones de .get()
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException; // Importar para manejar TimeoutException
+import java.util.concurrent.TimeoutException;
 
 @WebSocket
 public class WebSocketClientManager {
@@ -30,29 +30,21 @@ public class WebSocketClientManager {
     private ClientMessageObserver observer;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-    // Interfaz para que el cliente UI observe los mensajes del WebSocket
     public interface ClientMessageObserver {
         void onGameLoad(LoadGameMessage message);
         void onNotification(ServerMessageNotification message);
-        void onError(ServerMessageError message); // Cambiado a ServerMessageError para consistencia
+        void onError(ServerMessageError message);
     }
 
     public WebSocketClientManager(String serverUrl, ClientMessageObserver observer) {
-        // serverUrl debería ser algo como "http://localhost:8080"
         this.observer = observer;
         try {
-            // Construye la URL del WebSocket: reemplaza "http" con "ws" y añade el endpoint "/connect"
-            // según lo definido en tu servidor (gameplay.md)
-            String wsUrl = serverUrl.replace("http", "ws") + "/connect";
+            String wsUrl = serverUrl.replace("http", "ws") + "/ws";
             URI uri = new URI(wsUrl);
 
-            // Crea e inicia el cliente WebSocket de Jetty
             org.eclipse.jetty.websocket.client.WebSocketClient client = new org.eclipse.jetty.websocket.client.WebSocketClient();
-            client.start(); // Es crucial iniciar el cliente antes de conectarse.
+            client.start();
 
-            // Conecta al servidor WebSocket. El 'this' se refiere a esta instancia de WebSocketClientManager
-            // que está anotada con @WebSocket y tiene los métodos OnWebSocket...
-            // .get(5, TimeUnit.SECONDS) espera hasta 5 segundos por la conexión.
             Future<Session> fut = client.connect(this, uri);
             this.session = fut.get(5, TimeUnit.SECONDS);
 
@@ -66,7 +58,7 @@ public class WebSocketClientManager {
             if (observer != null) observer.onError(new ServerMessageError("Error de IO: " + e.getMessage()));
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             System.err.println("Error al establecer la conexión WebSocket: " + e.getMessage());
-            System.err.println("Por favor, asegúrate de que el servidor está corriendo en " + serverUrl + " y su endpoint WebSocket es /connect");
+            System.err.println("Por favor, asegúrate de que el servidor está corriendo en " + serverUrl + " y su endpoint WebSocket es /ws");
             if (observer != null) observer.onError(new ServerMessageError("Fallo al conectar al servidor WebSocket: " + e.getMessage()));
         } catch (Exception e) {
             System.err.println("Error inesperado al conectar WebSocket: " + e.getMessage());
@@ -82,8 +74,6 @@ public class WebSocketClientManager {
             throw new IOException("WebSocket session no está abierta.");
         }
     }
-
-    // Métodos OnWebSocket (llamados por Jetty cuando ocurren eventos)
 
     @OnWebSocketMessage
     public void onMessage(String message) {
@@ -127,7 +117,7 @@ public class WebSocketClientManager {
     @OnWebSocketError
     public void onError(Throwable cause) {
         System.err.println("WebSocket error: " + cause.getMessage());
-        cause.printStackTrace(); // Imprime el stack trace para depuración
+        cause.printStackTrace();
         if (observer != null) {
             observer.onError(new ServerMessageError("WebSocket error: " + cause.getMessage()));
         }
@@ -136,10 +126,9 @@ public class WebSocketClientManager {
     @OnWebSocketConnect
     public void onConnect(Session session) {
         System.out.println("WebSocket connected successfully: " + session.getRemoteAddress());
-        this.session = session; // Asegúrate de que la sesión esté bien asignada
+        this.session = session;
     }
 
-    // Método para cerrar la sesión (opcional, pero buena práctica)
     public void disconnect() throws IOException {
         if (session != null && session.isOpen()) {
             session.close();

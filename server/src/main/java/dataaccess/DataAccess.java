@@ -19,8 +19,6 @@ public interface DataAccess {
     void updateGame(int gameID, GameData game) throws DataAccessException;
     GameData[] getAllGames() throws DataAccessException;
 
-    // ELIMINADO: generateGameID ya no se usa aquí. La DB lo genera.
-    // int generateGameID() throws DataAccessException;
 
     void clear() throws DataAccessException;
 

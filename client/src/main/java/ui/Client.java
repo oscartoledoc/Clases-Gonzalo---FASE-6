@@ -320,8 +320,7 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
 
             serverFacade.joinGame(gameIDStr, playerColorStr, authToken);
 
-            this.wsClient = new WebSocketClientManager(serverURL + "/ws", this); // Cambiado a /ws
-
+            this.wsClient = new WebSocketClientManager(serverURL, this);
             ConnectCommand connectCommand = new ConnectCommand(authToken, gameID, playerColor);
             wsClient.sendCommand(connectCommand);
 
@@ -350,7 +349,7 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
 
             serverFacade.joinGame(gameIDStr, null, authToken);
 
-            this.wsClient = new WebSocketClientManager(serverURL + "/ws", this); // Cambiado a /ws
+            this.wsClient = new WebSocketClientManager(serverURL + "/ws", this);
 
             ConnectCommand connectCommand = new ConnectCommand(authToken, gameID, null);
             wsClient.sendCommand(connectCommand);
