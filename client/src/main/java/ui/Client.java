@@ -1,7 +1,10 @@
 package ui;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Scanner;
+import java.util.Set;
 import chess.*;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -24,6 +27,7 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
     public boolean isRunning;
     private boolean isLoggedIn;
     private ChessBoard currentBoard;
+    private ChessGame currentGame;
     private ChessGame.TeamColor currentPlayerColor;
     private String authToken;
     private Integer currentGameId;
@@ -36,6 +40,7 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
         this.isLoggedIn = false;
         this.currentBoard = new ChessBoard();
         this.currentBoard.resetBoard();
+        this.currentGame = new ChessGame();
         this.currentPlayerColor = null;
         this.authToken = null;
         this.currentGameId = null;
@@ -68,29 +73,29 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
     @Override
     public void onGameLoad(LoadGameMessage message) {
         System.out.println("\n--- ¡Juego Cargado! ---");
-        this.currentBoard = message.getGame().getBoard();
-        // Cuando el juego carga, el cliente debe dibujar el tablero desde la perspectiva del jugador o por defecto blanco
-        drawChessBoard(this.currentBoard, this.currentPlayerColor != null ? this.currentPlayerColor : ChessGame.TeamColor.WHITE);
-        System.out.print("[IN GAME] Ingresa un comando (help, redraw, leave, make move, resign): ");
+        this.currentGame = message.getGame();
+        this.currentBoard = this.currentGame.getBoard();
+        drawChessBoard(this.currentBoard, this.currentPlayerColor != null ? this.currentPlayerColor : ChessGame.TeamColor.WHITE, null);
+        System.out.print("[IN GAME] Enter a command (help, redraw, leave, make move, resign, highlight): ");
     }
 
     @Override
     public void onNotification(ServerMessageNotification message) {
         System.out.println("\n" + EscapeSequences.SET_TEXT_COLOR_CYAN + "--- Notificación del Servidor ---" + EscapeSequences.RESET_TEXT_COLOR);
         System.out.println(message.getMessage());
-        printPrompt(); // Imprimir prompt de nuevo después de la notificación
+        printPrompt();
     }
 
     @Override
     public void onError(ServerMessageError message) {
         System.out.println("\n" + EscapeSequences.SET_TEXT_COLOR_RED + "--- ¡ERROR del Servidor! ---" + EscapeSequences.RESET_TEXT_COLOR);
         System.err.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error: " + message.getErrorMessage() + EscapeSequences.RESET_TEXT_COLOR);
-        printPrompt(); // Imprimir prompt de nuevo después del error
+        printPrompt();
     }
 
     private void printPrompt() {
         if (inGame) {
-            System.out.print(EscapeSequences.SET_TEXT_COLOR_BLUE + "[IN GAME] " + EscapeSequences.RESET_TEXT_COLOR + "Ingresa un comando (help, redraw, leave, make move, resign): ");
+            System.out.print(EscapeSequences.SET_TEXT_COLOR_BLUE + "[IN GAME] " + EscapeSequences.RESET_TEXT_COLOR + "Ingresa un comando (help, redraw, leave, make move, resign, highlight): ");
         } else if (isLoggedIn) {
             System.out.print(EscapeSequences.SET_TEXT_COLOR_GREEN + "[LOGGED IN] " + EscapeSequences.RESET_TEXT_COLOR + "Ingresa un comando (help, logout, create game, list games, join game, observe game): ");
         } else {
@@ -153,28 +158,28 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
                 if (args.equals("game")) {
                     createGame(scanner);
                 } else {
-                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisiste decir 'create game'?" + EscapeSequences.RESET_TEXT_COLOR);
+                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisisteis decir 'create game'?" + EscapeSequences.RESET_TEXT_COLOR);
                 }
                 break;
             case "list":
                 if (args.equals("games")) {
                     listGames();
                 } else {
-                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisiste decir 'list games'?" + EscapeSequences.RESET_TEXT_COLOR);
+                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisisteis decir 'list games'?" + EscapeSequences.RESET_TEXT_COLOR);
                 }
                 break;
             case "join":
                 if (args.equals("game")) {
                     joinGame(scanner);
                 } else {
-                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisiste decir 'join game'?" + EscapeSequences.RESET_TEXT_COLOR);
+                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisisteis decir 'join game'?" + EscapeSequences.RESET_TEXT_COLOR);
                 }
                 break;
             case "observe":
                 if (args.equals("game")) {
                     observeGame(scanner);
                 } else {
-                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisiste decir 'observe game'?" + EscapeSequences.RESET_TEXT_COLOR);
+                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisisteis decir 'observe game'?" + EscapeSequences.RESET_TEXT_COLOR);
                 }
                 break;
             default:
@@ -190,18 +195,17 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
                         "Redraw - Vuelve a dibujar el tablero de ajedrez\n" +
                         "Leave - Abandona el juego actual\n" +
                         "Make move <start_pos> <end_pos> [promotion_piece] - Realiza un movimiento\n" +
-                        "Resign - Renuncia al juego");
+                        "Resign - Renuncia al juego\n" +
+                        "Highlight <posición_casilla> - Resalta los movimientos legales para la pieza en la casilla especificada");
                 break;
             case "redraw":
-                // Redibujar el tablero con la perspectiva actual del jugador
-                drawChessBoard(currentBoard, currentPlayerColor != null ? currentPlayerColor : ChessGame.TeamColor.WHITE);
+                drawChessBoard(currentBoard, currentPlayerColor != null ? currentPlayerColor : ChessGame.TeamColor.WHITE, null);
                 break;
             case "leave":
                 leaveGame();
                 break;
             case "make":
                 if (args.startsWith("move")) {
-                    // Extraer los argumentos reales del movimiento, saltando "move"
                     String moveArgs = "";
                     String[] splitArgs = args.split(" ", 2);
                     if (splitArgs.length > 1) {
@@ -214,6 +218,9 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
                 break;
             case "resign":
                 resignGame();
+                break;
+            case "highlight":
+                highlightLegalMoves(args);
                 break;
             default:
                 System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido en juego. Escribe 'help' para ver los comandos disponibles." + EscapeSequences.RESET_TEXT_COLOR);
@@ -316,7 +323,7 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
     private void joinGame(Scanner scanner) throws IOException {
         System.out.print("Ingresa el ID del juego: ");
         String gameIDStr = scanner.nextLine();
-        System.out.print("Ingresa el color del jugador (white/black, o deja vacío para observador): ");
+        System.out.print("Ingresa el color del jugador (white or black): ");
         String playerColorStr = scanner.nextLine();
 
         try {
@@ -368,6 +375,8 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
             System.out.println("Te has unido al juego " + gameID + " como observador.");
         } catch (NumberFormatException e) {
             System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error: El ID del juego debe ser un número." + EscapeSequences.RESET_TEXT_COLOR);
+        } catch (IllegalArgumentException e) {
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error: El color del jugador debe ser 'white' o 'black'." + EscapeSequences.RESET_TEXT_COLOR);
         } catch (IOException e) {
             System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error del servidor al observar el juego (HTTP): " + e.getMessage() + EscapeSequences.RESET_TEXT_COLOR);
         } catch (Exception e) {
@@ -411,6 +420,42 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
         wsClient.sendCommand(makeMoveCommand);
     }
 
+    private void highlightLegalMoves(String positionString) {
+        if (positionString == null || positionString.isEmpty()) {
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Usage: highlight <square_position> (e.g., highlight e2)." + EscapeSequences.RESET_TEXT_COLOR);
+            return;
+        }
+
+        ChessPosition selectedPos = parsePosition(positionString);
+        if (selectedPos == null) {
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Invalid position. Use chess format (e.g., e2)." + EscapeSequences.RESET_TEXT_COLOR);
+            return;
+        }
+
+        ChessPiece piece = currentBoard.getPiece(selectedPos);
+        if (piece == null) {
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_YELLOW + "Square " + positionString + " is empty." + EscapeSequences.RESET_TEXT_COLOR);
+            drawChessBoard(currentBoard, currentPlayerColor != null ? currentPlayerColor : ChessGame.TeamColor.WHITE, null);
+            return;
+        }
+
+        if (currentPlayerColor != null && piece.getTeamColor() != currentPlayerColor) {
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "You cannot view opponent's piece moves." + EscapeSequences.RESET_TEXT_COLOR);
+            drawChessBoard(currentBoard, currentPlayerColor != null ? currentPlayerColor : ChessGame.TeamColor.WHITE, null);
+            return;
+        }
+
+        Collection<ChessMove> legalMoves = currentGame.validMoves(selectedPos);
+        Set<ChessPosition> highlightedPositions = new HashSet<>();
+        highlightedPositions.add(selectedPos);
+        for (ChessMove move : legalMoves) {
+            highlightedPositions.add(move.getEndPosition());
+        }
+
+        drawChessBoard(currentBoard, currentPlayerColor != null ? currentPlayerColor : ChessGame.TeamColor.WHITE, highlightedPositions);
+    }
+
+
     private void leaveGame() throws IOException {
         UserGameCommand leaveCommand = new UserGameCommand(UserGameCommand.CommandType.LEAVE, authToken, currentGameId);
         wsClient.sendCommand(leaveCommand);
@@ -419,38 +464,38 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
         this.currentGameId = null;
         this.currentPlayerColor = null;
         this.currentBoard.resetBoard();
+        this.currentGame = new ChessGame();
         if (wsClient != null) {
             wsClient.disconnect();
             wsClient = null;
         }
-        System.out.println("Has abandonado el juego.");
+        System.out.println("You have left the game.");
     }
 
     private void resignGame() throws IOException {
-        System.out.print("¿Estás seguro de que quieres renunciar al juego? (yes/no): ");
+        System.out.print("Are you sure you want to resign the game? (yes/no): ");
         Scanner confirmationScanner = new Scanner(System.in);
         String confirmation = confirmationScanner.nextLine().trim().toLowerCase();
 
         if (!confirmation.equals("yes")) {
-            System.out.println("Renuncia cancelada.");
+            System.out.println("Resignation cancelled.");
             return;
         }
         UserGameCommand resignCommand = new UserGameCommand(UserGameCommand.CommandType.RESIGN, authToken, currentGameId);
         wsClient.sendCommand(resignCommand);
 
-        System.out.println("Solicitud de renuncia enviada. Esperando confirmación del servidor...");
+        System.out.println("Resignation request sent. Waiting for server confirmation...");
     }
 
     private void quit() {
-        System.out.println("Saliendo del cliente...");
+        System.out.println("Exiting client...");
         this.isRunning = false;
     }
 
-    // *** INICIO DE SECCIÓN DE DIBUJO DEL TABLERO ***
-    private void drawChessBoard(ChessBoard board, ChessGame.TeamColor playerPerspective) {
+    private void drawChessBoard(ChessBoard board, ChessGame.TeamColor playerPerspective, Set<ChessPosition> highlightedMoves) {
         System.out.print(EscapeSequences.ERASE_SCREEN);
         System.out.print(EscapeSequences.SET_CURSOR_TO_HOME_POSITION);
-        System.out.print(EscapeSequences.RESET_ALL); // Siempre resetear al inicio para una pizarra limpia
+        System.out.print(EscapeSequences.RESET_ALL);
 
         boolean isWhitePerspective = (playerPerspective == ChessGame.TeamColor.WHITE);
 
@@ -462,55 +507,49 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
         int endCol = isWhitePerspective ? 8 : 1;
         int colIncrement = isWhitePerspective ? 1 : -1;
 
-        // Imprimir encabezado de columnas (letras 'a' a 'h')
-        // El espacio inicial para la columna de los números de fila
         System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + EscapeSequences.SET_TEXT_COLOR_WHITE + "   ");
         for (int col = startCol; isWhitePerspective ? col <= endCol : col >= endCol; col += colIncrement) {
-            // Cada letra ocupa 3 caracteres (" a ", " b ", etc.) y se resetea para evitar fugas de color.
             System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + " " + (char) ('a' + col - 1) + " " + EscapeSequences.RESET_ALL);
         }
-        System.out.println(); // Salto de línea después de la fila de encabezado
+        System.out.println();
 
         for (int r = startRow; isWhitePerspective ? r >= endRow : r <= endRow; r += rowIncrement) {
-            // Imprimir número de fila (ej. " 8 ", 3 caracteres) con fondo gris y texto blanco, luego RESET_ALL
             System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + EscapeSequences.SET_TEXT_COLOR_WHITE + " " + r + " " + EscapeSequences.RESET_ALL);
 
             for (int c = startCol; isWhitePerspective ? c <= endCol : c >= endCol; c += colIncrement) {
                 ChessPosition position = new ChessPosition(r, c);
                 ChessPiece piece = board.getPiece(position);
 
-                boolean isLightSquare = (r + c) % 2 != 0; // Alternar color del cuadrado
-                String bgColor = isLightSquare ? EscapeSequences.SET_BG_COLOR_LIGHT_GREY : EscapeSequences.SET_BG_COLOR_DARK_GREEN; // Usamos DARK_GREEN para las casillas "negras"
+                String bgColor;
+                if (highlightedMoves != null && highlightedMoves.contains(position)) {
+                    bgColor = EscapeSequences.SET_BG_COLOR_RED;
+                } else {
+                    boolean isLightSquare = (r + c) % 2 != 0;
+                    bgColor = isLightSquare ? EscapeSequences.SET_BG_COLOR_LIGHT_GREY : EscapeSequences.SET_BG_COLOR_DARK_GREEN;
+                }
 
-                System.out.print(bgColor); // Aplica el color de fondo para la casilla
+                System.out.print(bgColor);
 
-                // getPieceSymbol ahora devuelve el símbolo ya con su color de texto y padding
                 String pieceSymbol = getPieceSymbol(piece);
 
-                System.out.print(pieceSymbol); // Imprime el símbolo ya coloreado y con padding
+                System.out.print(pieceSymbol);
 
                 System.out.print(EscapeSequences.RESET_BG_COLOR);
             }
-            // Al final de cada fila de casillas, restablecemos *todo* (texto y fondo)
-            // para la siguiente línea, asegurando que no queden colores activos.
             System.out.println(EscapeSequences.RESET_ALL);
         }
 
-        // Imprimir pie de página de columnas (letras 'a' a 'h')
-        // Mismo formato que el encabezado, incluyendo el espacio inicial de 3 caracteres.
         System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + EscapeSequences.SET_TEXT_COLOR_WHITE + "   ");
         for (int col = startCol; isWhitePerspective ? col <= endCol : col >= endCol; col += colIncrement) {
             System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + " " + (char) ('a' + col - 1) + " " + EscapeSequences.RESET_ALL);
         }
-        System.out.println(); // Salto de línea después de la fila de pie de página
-        System.out.print(EscapeSequences.RESET_ALL); // Un reset final para la terminal
+        System.out.println();
+        System.out.print(EscapeSequences.RESET_ALL);
     }
 
-    // getPieceSymbol: Ahora devuelve el símbolo Unicode de la pieza CON SU COLOR DE TEXTO
-    // y el padding ya incluido por las constantes de EscapeSequences (ej. " ♔ ").
     private String getPieceSymbol(ChessPiece piece) {
         if (piece == null) {
-            return EscapeSequences.EMPTY; // Devuelve el espacio en-quad ya con padding
+            return EscapeSequences.EMPTY;
         }
 
         ChessGame.TeamColor color = piece.getTeamColor();
@@ -526,12 +565,10 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
             case ROOK: pieceSymbolText = color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_ROOK : EscapeSequences.BLACK_ROOK; break;
             case QUEEN: pieceSymbolText = color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_QUEEN : EscapeSequences.BLACK_QUEEN; break;
             case KING: pieceSymbolText = color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_KING : EscapeSequences.BLACK_KING; break;
-            default: pieceSymbolText = EscapeSequences.EMPTY; // Debería ser inalcanzable si todos los tipos están cubiertos
+            default: pieceSymbolText = EscapeSequences.EMPTY;
         }
-        // Retorna el símbolo de la pieza con su color de texto aplicado y reseteado
         return textColor + pieceSymbolText + EscapeSequences.RESET_TEXT_COLOR;
     }
-    // *** FIN DE SECCIÓN DE DIBUJO DEL TABLERO ***
 
     private ChessPosition parsePosition(String posStr) {
         if (posStr == null || posStr.length() != 2) {
