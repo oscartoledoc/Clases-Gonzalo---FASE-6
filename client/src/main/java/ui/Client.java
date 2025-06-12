@@ -69,6 +69,7 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
     public void onGameLoad(LoadGameMessage message) {
         System.out.println("\n--- ¡Juego Cargado! ---");
         this.currentBoard = message.getGame().getBoard();
+        // Cuando el juego carga, el cliente debe dibujar el tablero desde la perspectiva del jugador o por defecto blanco
         drawChessBoard(this.currentBoard, this.currentPlayerColor != null ? this.currentPlayerColor : ChessGame.TeamColor.WHITE);
         System.out.print("[IN GAME] Ingresa un comando (help, redraw, leave, make move, resign): ");
     }
@@ -77,14 +78,14 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
     public void onNotification(ServerMessageNotification message) {
         System.out.println("\n" + EscapeSequences.SET_TEXT_COLOR_CYAN + "--- Notificación del Servidor ---" + EscapeSequences.RESET_TEXT_COLOR);
         System.out.println(message.getMessage());
-        printPrompt();
+        printPrompt(); // Imprimir prompt de nuevo después de la notificación
     }
 
     @Override
     public void onError(ServerMessageError message) {
         System.out.println("\n" + EscapeSequences.SET_TEXT_COLOR_RED + "--- ¡ERROR del Servidor! ---" + EscapeSequences.RESET_TEXT_COLOR);
         System.err.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error: " + message.getErrorMessage() + EscapeSequences.RESET_TEXT_COLOR);
-        printPrompt();
+        printPrompt(); // Imprimir prompt de nuevo después del error
     }
 
     private void printPrompt() {
@@ -199,7 +200,12 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
                 break;
             case "make":
                 if (args.startsWith("move")) {
-                    makeMove(scanner, args.substring(5).trim());
+                    String moveArgs = "";
+                    String[] splitArgs = args.split(" ", 2);
+                    if (splitArgs.length > 1) {
+                        moveArgs = splitArgs[1].trim(); // Obtener "e2 e4" de "move e2 e4"
+                    }
+                    makeMove(scanner, moveArgs);
                 } else {
                     System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Uso: make move <posición_inicio> <posición_fin> [pieza_promoción]." + EscapeSequences.RESET_TEXT_COLOR);
                 }
@@ -349,9 +355,9 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
 
             serverFacade.joinGame(gameIDStr, null, authToken);
 
-            this.wsClient = new WebSocketClientManager(serverURL + "/ws", this);
+            this.wsClient = new WebSocketClientManager(serverURL, this);
 
-            ConnectCommand connectCommand = new ConnectCommand(authToken, gameID, null);
+            ConnectCommand connectCommand = new ConnectCommand(authToken, gameID, null); // playerColor es null para observador
             wsClient.sendCommand(connectCommand);
 
             this.inGame = true;
@@ -411,7 +417,10 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
         this.currentGameId = null;
         this.currentPlayerColor = null;
         this.currentBoard.resetBoard();
-
+        if (wsClient != null) {
+            wsClient.disconnect();
+            wsClient = null;
+        }
         System.out.println("Has abandonado el juego.");
     }
 
@@ -473,6 +482,7 @@ public class Client implements WebSocketClientManager.ClientMessageObserver {
             System.out.println(EscapeSequences.RESET_ALL);
         }
 
+        // Imprimir pie de página de columnas
         System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + EscapeSequences.SET_TEXT_COLOR_WHITE + "   ");
         for (int col = startCol; isWhitePerspective ? col <= endCol : col >= endCol; col += colIncrement) {
             System.out.print(" " + (char) ('a' + col - 1) + " ");
