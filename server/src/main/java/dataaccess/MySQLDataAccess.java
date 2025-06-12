@@ -200,18 +200,12 @@ public class MySQLDataAccess implements DataAccess {
         }
     }
 
-    // ELIMINADO: Este método ya no es necesario ni se implementa, ya que la DB genera el ID.
-    // @Override
-    // public int generateGameID() throws DataAccessException {
-    //     throw new DataAccessException("generateGameID() no debe ser llamado; el ID es AUTO_INCREMENT.");
-    // }
 
     @Override
     public void clear() throws DataAccessException{
         deleteAllGames();
         deleteAllAuth();
         deleteAllUsers();
-        // REINICIAR EL CONTADOR DE AUTO_INCREMENT DESPUÉS DE ELIMINAR LOS JUEGOS
         try (Connection conn = DatabaseManager.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.executeUpdate("ALTER TABLE games AUTO_INCREMENT = 1");
         } catch (SQLException e) {
