@@ -11,12 +11,11 @@ import org.mindrot.jbcrypt.BCrypt;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects; // Importar Objects
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Objects;
 
 public class MySQLDataAccess implements DataAccess {
     private final Gson gson = new Gson();
-    private final AtomicInteger gameIdCounter = new AtomicInteger(1);
+    // ELIMINADO: private final AtomicInteger gameIdCounter = new AtomicInteger(1);
 
     public MySQLDataAccess() throws DataAccessException {
         DatabaseManager.createDatabase();
@@ -32,7 +31,7 @@ public class MySQLDataAccess implements DataAccess {
                     "FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE\n" +
                     ");");
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS games (\n" +
-                    "gameID INT PRIMARY KEY AUTO_INCREMENT,\n" +
+                    "gameID INT PRIMARY KEY AUTO_INCREMENT,\n" + // AUTO_INCREMENT es clave aquí
                     "whiteUsername VARCHAR (255),\n" +
                     "blackUsername VARCHAR (255),\n" +
                     "gameName VARCHAR (255) NOT NULL,\n" +
@@ -137,17 +136,28 @@ public class MySQLDataAccess implements DataAccess {
     }
 
     @Override
-    public void createGame(GameData game) throws DataAccessException{
-        try (Connection conn = DatabaseManager.getConnection(); PreparedStatement stmt = conn.prepareStatement
-                ("INSERT INTO games(gameID, whiteUsername, blackUsername, gameName, game) VALUES (?, ?, ?, ?, ?)")){
-            stmt.setInt(1, game.gameID());
-            stmt.setString(2, game.whiteUsername());
-            stmt.setString(3, game.blackUsername());
-            stmt.setString(4, game.gameName());
-            stmt.setString(5, game.game() != null ? gson.toJson(game.game()) : null);
+    public int createGame(GameData game) throws DataAccessException {
+        // MODIFICADO: NO incluyas gameID en el INSERT, deja que AUTO_INCREMENT lo genere
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                     "INSERT INTO games(whiteUsername, blackUsername, gameName, game) VALUES (?, ?, ?, ?)",
+                     Statement.RETURN_GENERATED_KEYS)) { // Importante para recuperar el ID
+            stmt.setString(1, game.whiteUsername());
+            stmt.setString(2, game.blackUsername());
+            stmt.setString(3, game.gameName());
+            stmt.setString(4, game.game() != null ? gson.toJson(game.game()) : null);
             stmt.executeUpdate();
-        } catch (SQLException e){
-            throw new DataAccessException("failed to create game " + e.getMessage());
+
+            // Recuperar el gameID generado por la base de datos
+            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    return generatedKeys.getInt(1); // Devuelve el ID generado
+                } else {
+                    throw new DataAccessException("Failed to get generated game ID.");
+                }
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("failed to create game: " + e.getMessage());
         }
     }
 
@@ -190,19 +200,23 @@ public class MySQLDataAccess implements DataAccess {
         }
     }
 
-    @Override
-    public int generateGameID() throws DataAccessException {
-
-        return gameIdCounter.getAndIncrement();
-    }
-
+    // ELIMINADO: Este método ya no es necesario ni se implementa, ya que la DB genera el ID.
+    // @Override
+    // public int generateGameID() throws DataAccessException {
+    //     throw new DataAccessException("generateGameID() no debe ser llamado; el ID es AUTO_INCREMENT.");
+    // }
 
     @Override
     public void clear() throws DataAccessException{
         deleteAllGames();
         deleteAllAuth();
         deleteAllUsers();
-        gameIdCounter.set(1);
+        // REINICIAR EL CONTADOR DE AUTO_INCREMENT DESPUÉS DE ELIMINAR LOS JUEGOS
+        try (Connection conn = DatabaseManager.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("ALTER TABLE games AUTO_INCREMENT = 1");
+        } catch (SQLException e) {
+            throw new DataAccessException("Failed to reset AUTO_INCREMENT for games table: " + e.getMessage());
+        }
     }
 
     @Override
@@ -239,7 +253,6 @@ public class MySQLDataAccess implements DataAccess {
         if (game == null) {
             return false;
         }
-
 
         if (Objects.equals(game.whiteUsername(), username) || Objects.equals(game.blackUsername(), username)) {
             return false;

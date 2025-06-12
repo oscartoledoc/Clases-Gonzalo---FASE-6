@@ -10,415 +10,608 @@ import com.google.gson.JsonObject;
 import websocket.WebSocketClientManager;
 import websocket.commands.MakeMoveCommand;
 import websocket.commands.UserGameCommand;
+import websocket.commands.ConnectCommand;
+import websocket.messages.ServerMessage;
+import websocket.messages.ServerMessageError;
+import websocket.messages.ServerMessageNotification;
+import websocket.messages.LoadGameMessage;
 
-public class Client {
+public class Client implements WebSocketClientManager.ClientMessageObserver {
+
     private final String serverURL;
     private final ServerFacade serverFacade;
-    private final WebSocketClientManager wsClient;
+    private WebSocketClientManager wsClient;
     public boolean isRunning;
     private boolean isLoggedIn;
-    private ChessBoard board;
-    private String currentPlayerColor;
+    private ChessBoard currentBoard; // Se actualizará con los mensajes del servidor
+    private ChessGame.TeamColor currentPlayerColor;
     private String authToken;
-    private String currentGameId;
-    private Boolean inGame;
+    private Integer currentGameId;
+    private boolean inGame; // Indica si el cliente está actualmente dentro de un juego de ajedrez (jugando u observando)
 
     public Client(String serverURL) {
         this.serverURL = serverURL;
         this.serverFacade = new ServerFacade(serverURL);
-        this.wsClient = new WebSocketClientManager();
         this.isRunning = true;
         this.isLoggedIn = false;
-        this.board = new ChessBoard();
-        this.board.resetBoard();
+        this.currentBoard = new ChessBoard();
+        this.currentBoard.resetBoard(); // Inicializa con un tablero de inicio
         this.currentPlayerColor = null;
-
-        wsClient.setListener(new WebSocketClientManager.clientListener() {
-            @Override
-            public void onGameUpdate(ChessGame game) {
-                board = game.getBoard();
-                displayBoard();
-            }
-
-            @Override
-            public void onNotification(String message) {
-                System.out.println("Notification: " + message);
-            }
-
-            @Override
-            public void onError(String message) {
-                System.out.println("Error: " + message);
-            }
-        });
+        this.authToken = null;
+        this.currentGameId = null;
+        this.inGame = false;
     }
 
+    /**
+     * Método principal para ejecutar el cliente y su bucle de comandos.
+     */
     public void run() {
-        System.out.println("Welcome to 240 Chess! Type Help to get started");
+        System.out.println("¡Bienvenido a 240 Chess! Escribe Help para empezar");
         Scanner scanner = new Scanner(System.in);
-        while(isRunning) {
-            String command = scanner.nextLine().trim().toLowerCase();
-            handleCommand(command, scanner);
+        String line;
+        while (isRunning) {
+            printPrompt();
+            line = scanner.nextLine();
+            try {
+                handleCommand(line, scanner);
+            } catch (Exception e) {
+                System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error: " + e.getMessage() + EscapeSequences.RESET_TEXT_COLOR);
+                // e.printStackTrace(); // Descomentar para depuración si es necesario
+            }
         }
         scanner.close();
-    }
-
-    private void handleCommand(String command, Scanner scanner) {
-        if (isLoggedIn) {
-            handlePostLoginCommand(command, scanner);
-        } else {
-            handlePreLoginCommand(command, scanner);
+        // Opcional: Cerrar la conexión WebSocket al salir
+        try {
+            if (wsClient != null) {
+                wsClient.disconnect();
+            }
+        } catch (IOException e) {
+            System.err.println("Error al desconectar WebSocket: " + e.getMessage());
         }
     }
 
-    private void handlePreLoginCommand(String command, Scanner scanner) {
+    // --- Implementación de la interfaz WebSocketClientManager.ClientMessageObserver ---
+
+    @Override
+    public void onGameLoad(LoadGameMessage message) {
+        System.out.println("\n--- ¡Juego Cargado! ---");
+        this.currentBoard = message.getGame().getBoard(); // Actualiza el tablero del cliente
+        // Dibuja el tablero desde la perspectiva del jugador o por defecto BLANCO si es observador
+        drawChessBoard(this.currentBoard, this.currentPlayerColor != null ? this.currentPlayerColor : ChessGame.TeamColor.WHITE);
+        System.out.print("[IN GAME] Ingresa un comando (help, redraw, leave, make move, resign): ");
+    }
+
+    @Override
+    public void onNotification(ServerMessageNotification message) {
+        System.out.println("\n" + EscapeSequences.SET_TEXT_COLOR_CYAN + "--- Notificación del Servidor ---" + EscapeSequences.RESET_TEXT_COLOR);
+        System.out.println(message.getMessage());
+        // Imprime el prompt nuevamente para que el usuario pueda escribir un comando.
+        printPrompt(); // Vuelve a imprimir el prompt actual
+    }
+
+    @Override
+    public void onError(ServerMessageError message) {
+        System.out.println("\n" + EscapeSequences.SET_TEXT_COLOR_RED + "--- ¡ERROR del Servidor! ---" + EscapeSequences.RESET_TEXT_COLOR);
+        System.err.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error: " + message.getErrorMessage() + EscapeSequences.RESET_TEXT_COLOR);
+        // Imprime el prompt nuevamente para que el usuario pueda escribir un comando.
+        printPrompt(); // Vuelve a imprimir el prompt actual
+    }
+
+    // --- Métodos de Ayuda y Manejo de Comandos ---
+
+    private void printPrompt() {
+        if (inGame) {
+            System.out.print(EscapeSequences.SET_TEXT_COLOR_BLUE + "[IN GAME] " + EscapeSequences.RESET_TEXT_COLOR + "Ingresa un comando (help, redraw, leave, make move, resign): ");
+        } else if (isLoggedIn) {
+            System.out.print(EscapeSequences.SET_TEXT_COLOR_GREEN + "[LOGGED IN] " + EscapeSequences.RESET_TEXT_COLOR + "Ingresa un comando (help, logout, create game, list games, join game, observe game): ");
+        } else {
+            System.out.print(EscapeSequences.SET_TEXT_COLOR_YELLOW + "[PRE-LOGIN] " + EscapeSequences.RESET_TEXT_COLOR + "Ingresa un comando (help, quit, login, register): ");
+        }
+    }
+
+    private void handleCommand(String line, Scanner scanner) throws IOException, InvalidMoveException {
+        String[] parts = line.trim().toLowerCase().split(" ", 2);
+        String command = parts[0];
+        String args = parts.length > 1 ? parts[1] : "";
+
+        if (inGame) {
+            handleInGameCommand(command, scanner, args);
+        } else if (isLoggedIn) {
+            handleLoggedInCommand(command, scanner, args);
+        } else {
+            handlePreLoginCommand(command, scanner, args);
+        }
+    }
+
+    private void handlePreLoginCommand(String command, Scanner scanner, String args) throws IOException {
         switch (command) {
             case "help":
-                displayHelp();
-                break;
-            case "quit":
-                isRunning = false;
-                System.out.println("Goodbye!");
+                System.out.println("Comandos disponibles: \n" +
+                        "Help - Muestra este mensaje de ayuda\n" +
+                        "Login - Inicia sesión en una cuenta existente\n" +
+                        "Register - Registra un nuevo usuario\n" +
+                        "Quit - Sale del cliente");
                 break;
             case "login":
-                handleLogin(scanner);
+                login(scanner);
                 break;
             case "register":
-                handleRegister(scanner);
+                register(scanner);
+                break;
+            case "quit":
+                quit();
                 break;
             default:
-                System.out.println("Invalid command, type Help for a list of commands");
+                System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. Escribe 'help' para ver los comandos disponibles." + EscapeSequences.RESET_TEXT_COLOR);
         }
     }
 
-    private void handlePostLoginCommand(String command, Scanner scanner) {
+    private void handleLoggedInCommand(String command, Scanner scanner, String args) throws IOException {
         switch (command) {
             case "help":
-                displayHelp();
+                System.out.println("Comandos disponibles: \n" +
+                        "Help - Muestra este mensaje de ayuda\n" +
+                        "Logout - Cierra la sesión de la cuenta actual\n" +
+                        "Create game - Crea un nuevo juego de ajedrez\n" +
+                        "List games - Muestra una lista de todos los juegos disponibles\n" +
+                        "Join game - Únete a un juego existente como jugador\n" +
+                        "Observe game - Únete a un juego existente como observador");
                 break;
             case "logout":
-                handleLogout();
+                logout();
                 break;
-            case "create game":
-                handleCreateGame(scanner);
+            case "create":
+                if (args.equals("game")) {
+                    createGame(scanner);
+                } else {
+                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisiste decir 'create game'?" + EscapeSequences.RESET_TEXT_COLOR);
+                }
                 break;
-            case "list games":
-                handleListGames();
+            case "list":
+                if (args.equals("games")) {
+                    listGames();
+                } else {
+                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisiste decir 'list games'?" + EscapeSequences.RESET_TEXT_COLOR);
+                }
                 break;
-            case "join game":
-                handleJoinGame(scanner);
-            case "observe game":
-                handleObserveGame(scanner);
+            case "join":
+                if (args.equals("game")) {
+                    joinGame(scanner);
+                } else {
+                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisiste decir 'join game'?" + EscapeSequences.RESET_TEXT_COLOR);
+                }
+                break;
+            case "observe":
+                if (args.equals("game")) {
+                    observeGame(scanner);
+                } else {
+                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. ¿Quizás quisiste decir 'observe game'?" + EscapeSequences.RESET_TEXT_COLOR);
+                }
                 break;
             default:
-                System.out.println("Invalid command, type Help for a list of commands");
+                System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido. Escribe 'help' para ver los comandos disponibles." + EscapeSequences.RESET_TEXT_COLOR);
         }
     }
-    private void displayHelp() {
-        System.out.println("Available commands: ");
-        System.out.println("Help - Displays this help message");
-        if (isLoggedIn){
-            System.out.println("Logout - Logs out of the current account");
-            System.out.println("Create Game - Creates a new chess game");
-            System.out.println("List Games - Lists existing chess games");
-            System.out.println("Join Game - Join an available chess game");
-            System.out.println("Observe Game - Observe an ongoing chess game");
+
+    private void handleInGameCommand(String command, Scanner scanner, String args) throws IOException, InvalidMoveException {
+        switch (command) {
+            case "help":
+                System.out.println("Comandos disponibles en juego: \n" +
+                        "Help - Muestra este mensaje de ayuda\n" +
+                        "Redraw - Vuelve a dibujar el tablero de ajedrez\n" +
+                        "Leave - Abandona el juego actual\n" +
+                        "Make move <start_pos> <end_pos> [promotion_piece] - Realiza un movimiento\n" +
+                        "Resign - Renuncia al juego");
+                break;
+            case "redraw":
+                drawChessBoard(currentBoard, currentPlayerColor != null ? currentPlayerColor : ChessGame.TeamColor.WHITE);
+                break;
+            case "leave":
+                leaveGame();
+                break;
+            case "make":
+                if (args.startsWith("move")) {
+                    makeMove(scanner, args.substring(5).trim()); // Pasa el resto de la línea
+                } else {
+                    System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Uso: make move <posición_inicio> <posición_fin> [pieza_promoción]." + EscapeSequences.RESET_TEXT_COLOR);
+                }
+                break;
+            case "resign":
+                resignGame();
+                break;
+            default:
+                System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Comando desconocido en juego. Escribe 'help' para ver los comandos disponibles." + EscapeSequences.RESET_TEXT_COLOR);
+        }
+    }
+
+    private void register(Scanner scanner) throws IOException {
+        System.out.print("Ingresa tu nombre de usuario: ");
+        String username = scanner.nextLine();
+        System.out.print("Ingresa tu contraseña: ");
+        String password = scanner.nextLine();
+        System.out.print("Ingresa tu correo electrónico: ");
+        String email = scanner.nextLine();
+
+        String response = serverFacade.register(username, password, email);
+        if (response.contains("Error")) {
+            System.out.println(response);
         } else {
-            System.out.println("Login - Logs in to an existing account");
-            System.out.println("Register - Registers a new user");
-            System.out.println("Quit - Exit the client");
+            Gson gson = new Gson();
+            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+            this.authToken = jsonResponse.get("authToken").getAsString(); // ServerFacade ya debería setearlo
+            this.isLoggedIn = true;
+            System.out.println("¡Registro exitoso!");
         }
     }
 
-    private void handleLogin(Scanner scanner) {
-        System.out.println("Enter username: ");
-        String username = scanner.nextLine().trim();
-        System.out.println("Enter password: ");
-        String password = scanner.nextLine().trim();
-        try {
-            serverFacade.login(username, password);
-            System.out.println("Login successful!");
-            isLoggedIn = true;
-            authToken = serverFacade.getAuthToken();
-            System.out.println("You are now logged in");
-            System.out.println("Type Help for a list of commands");
-        } catch (IOException e){
-            if (e.getMessage().contains("401")) {
-                System.out.println("Login failed: Invalid username or password");
-            }
-            else {
-                System.out.println("Login failed: " + e.getMessage());
-            }
+    private void login(Scanner scanner) throws IOException {
+        System.out.print("Ingresa tu nombre de usuario: ");
+        String username = scanner.nextLine();
+        System.out.print("Ingresa tu contraseña: ");
+        String password = scanner.nextLine();
+
+        String response = serverFacade.login(username, password);
+        if (response.contains("Error")) {
+            System.out.println(response);
+        } else {
+            Gson gson = new Gson();
+            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+            this.authToken = jsonResponse.get("authToken").getAsString(); // ServerFacade ya debería setearlo
+            this.isLoggedIn = true;
+            System.out.println("¡Inicio de sesión exitoso!");
         }
     }
 
-    private void handleRegister(Scanner scanner) {
-        System.out.println("Enter username: ");
-        String username = scanner.nextLine().trim();
-        System.out.println("Enter password: ");
-        String password = scanner.nextLine().trim();
-        System.out.println("Enter email: ");
-        String email = scanner.nextLine().trim();
-        try {
-            serverFacade.register(username, password, email);
-            System.out.println("Registration successful!");
-            System.out.println("Type Help for a list of commands");
-            serverFacade.login(username, password);
-            isLoggedIn = true;
-            authToken = serverFacade.getAuthToken();
-        } catch (IOException e){
-            if (e.getMessage().contains("403")) {
-                System.out.println("Registration failed: Username already exists");
-            }
-            else {
-                System.out.println("Registration failed: " + e.getMessage());
-            }
+    private void logout() throws IOException {
+        String response = serverFacade.logout(authToken);
+        if (response.contains("Error")) {
+            System.out.println(response);
+        } else {
+            this.authToken = null;
+            this.isLoggedIn = false;
+            System.out.println("¡Sesión cerrada exitosamente!");
         }
     }
 
-    private void handleLogout() {
-        try {
-            serverFacade.logout();
-        } catch (Exception e){
-            System.out.println("Logout failed: " + e.getMessage());
-        }
-        authToken = null;
-        isLoggedIn = false;
-        System.out.println("Logout successful!");
-    }
+    private void createGame(Scanner scanner) throws IOException {
+        System.out.print("Ingresa el nombre del juego: ");
+        String gameName = scanner.nextLine();
 
-    private void handleCreateGame(Scanner scanner) {
-        if (!loginCheck()){
-            return;
-        }
-        System.out.println("Enter game name: ");
-        String gameName = scanner.nextLine().trim();
-        try {
-            serverFacade.createGame(gameName);
-            System.out.println("Game created successfully!");
-        } catch (Exception e){
-            System.out.println("Game creation failed: " + e.getMessage());
+        String response = serverFacade.createGame(gameName, authToken);
+        if (response.contains("Error")) {
+            System.out.println(response);
+        } else {
+            Gson gson = new Gson();
+            JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+            String gameID = jsonResponse.get("gameID").getAsString();
+            System.out.println("Juego '" + gameName + "' creado exitosamente con ID: " + gameID);
         }
     }
 
-    private void handleListGames() {
-        if(!loginCheck()) {
-            return;
-        }
-        try {
-            String response = serverFacade.listGames();
+    private void listGames() throws IOException {
+        String response = serverFacade.listGames(authToken);
+        if (response.contains("Error")) {
+            System.out.println(response);
+        } else {
             Gson gson = new Gson();
             JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
             JsonArray gamesArray = jsonResponse.getAsJsonArray("games");
 
-            if (gamesArray == null || gamesArray.size() == 0) {
-                System.out.println("No games available at the moment.");
+            if (gamesArray == null || gamesArray.isEmpty()) {
+                System.out.println("No hay juegos disponibles.");
                 return;
             }
 
-            System.out.println("Available Games:");
-            int index = 1;
+            System.out.println("--- Juegos Disponibles ---");
+            int i = 1;
             for (JsonElement gameElement : gamesArray) {
                 JsonObject game = gameElement.getAsJsonObject();
+                String gameID = game.get("gameID").getAsString();
                 String gameName = game.get("gameName").getAsString();
+                String whiteUsername = game.has("whiteUsername") && !game.get("whiteUsername").isJsonNull() ? game.get("whiteUsername").getAsString() : "No asignado";
+                String blackUsername = game.has("blackUsername") && !game.get("blackUsername").isJsonNull() ? game.get("blackUsername").getAsString() : "No asignado";
 
-                String whitePlayer = game.has("whiteUsername") && !game.get("whiteUsername").isJsonNull()
-                        ? game.get("whiteUsername").getAsString() : "None";
+                System.out.printf("%d. ID: %s, Nombre: %s, Blanco: %s, Negro: %s%n",
+                        i++, gameID, gameName, whiteUsername, blackUsername);
+            }
+        }
+    }
 
-                String blackPlayer = game.has("blackUsername") && !game.get("blackUsername").isJsonNull()
-                        ? game.get("blackUsername").getAsString() : "None";
+    private void joinGame(Scanner scanner) throws IOException {
+        System.out.print("Ingresa el ID del juego: ");
+        String gameIDStr = scanner.nextLine();
+        System.out.print("Ingresa el color del jugador (white/black, o deja vacío para observador): ");
+        String playerColorStr = scanner.nextLine();
 
-                System.out.printf("%d. %s - White: %s, Black: %s%n",
-                        index, gameName, whitePlayer, blackPlayer);
-                index++;
+        try {
+            Integer gameID = Integer.parseInt(gameIDStr);
+            ChessGame.TeamColor playerColor = null;
+            if (!playerColorStr.isEmpty()) {
+                playerColor = ChessGame.TeamColor.valueOf(playerColorStr.toUpperCase());
             }
 
+            // 1. Llamada a la API HTTP para unirse al juego (para asignar color en el servidor)
+            // Esto es crucial para que el servidor registre tu authToken y gameID antes del WebSocket
+            serverFacade.joinGame(gameIDStr, playerColorStr, authToken); // Pasa el authToken
+
+            // 2. Inicializa la conexión WebSocket.
+            // El constructor de WebSocketClientManager ahora se encarga de establecer la conexión.
+            // Si la conexión falla, se lanzará una excepción.
+            this.wsClient = new WebSocketClientManager(serverURL, this);
+
+            // 3. Envía el comando CONNECT al servidor a través del WebSocket
+            ConnectCommand connectCommand = new ConnectCommand(authToken, gameID, playerColor);
+            wsClient.sendCommand(connectCommand);
+
+            this.inGame = true;
+            this.currentGameId = gameID;
+            this.currentPlayerColor = playerColor; // Guarda el color del jugador
+            System.out.println("Te has unido al juego " + gameID + (playerColor != null ? " como " + playerColor.name().toLowerCase() : " como observador") + ".");
+            // El tablero se dibujará cuando el servidor envíe el mensaje LOAD_GAME
+        } catch (NumberFormatException e) {
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error: El ID del juego debe ser un número." + EscapeSequences.RESET_TEXT_COLOR);
+        } catch (IllegalArgumentException e) {
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error: El color del jugador debe ser 'white' o 'black'." + EscapeSequences.RESET_TEXT_COLOR);
         } catch (IOException e) {
-            System.out.println("Failed to list games: Unable to connect to the server. Please try again later.");
-        } catch (Exception e) {
-            System.out.println("Failed to list games: An unexpected error occurred. Please try again.");
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error del servidor al unirse al juego (HTTP): " + e.getMessage() + EscapeSequences.RESET_TEXT_COLOR);
+        } catch (Exception e) { // Captura cualquier otra excepción de WebSocketClientManager
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "No se pudo establecer la conexión WebSocket: " + e.getMessage() + EscapeSequences.RESET_TEXT_COLOR);
+            this.inGame = false; // Asegurarse de que el estado no sea "in game" si la conexión falla
+            // e.printStackTrace(); // Descomentar para depuración si es necesario
         }
     }
 
-    private void handleJoinGame(Scanner scanner) {
-        if (!loginCheck()) {
-            return;
-        }
-        System.out.println("Enter game id: ");
-        String gameId = scanner.nextLine().trim();
-        System.out.println("Enter player color (white/black): ");
-        String playerColor = scanner.nextLine().trim().toLowerCase();
-        if (!playerColor.equals("white") && !playerColor.equals("black")) {
-            System.out.println("Invalid player color, must be white or black");
-            return;
+    private void observeGame(Scanner scanner) throws IOException {
+        System.out.print("Ingresa el ID del juego para observar: ");
+        String gameIDStr = scanner.nextLine();
 
-        }
         try {
-            serverFacade.joinGame(gameId, playerColor);
-            currentPlayerColor = playerColor;
-            System.out.println("Game joined");
-            displayBoard();
-        } catch (IOException e){
-            if (e.getMessage().contains("403")) {
-                System.out.println("Unable to join: Color taken");
-            } else if (e.getMessage().contains("500")) {
-                System.out.println("Unable to join: ID not found");
-            }
-            else {
-                System.out.println("Unable to join: " + e.getMessage());
-            }
-        }
+            Integer gameID = Integer.parseInt(gameIDStr);
 
-    }
-    private void handleObserveGame(Scanner scanner) {
-        return;
-    }
+            // 1. Llama a la API HTTP para observar el juego (no se especifica color)
+            serverFacade.joinGame(gameIDStr, null, authToken); // Pasa null para el color del jugador
 
-    private void handleMakeMove(Scanner scanner) {
-        if (currentPlayerColor == null) {
-            System.out.println("Observers cannot make moves.");
-            return;
-        }
-        System.out.println("Enter move (e.g., e2 e4): ");
-        String moveInput = scanner.nextLine().trim();
-        String[] parts = moveInput.split("\\s+");
-        if (parts.length != 2) {
-            System.out.println("Invalid move format. Use: start end (e.g., e2 e4)");
-            return;
-        }
-        try {
-            ChessPosition start = parsePosition(parts[0]);
-            ChessPosition end = parsePosition(parts[1]);
-            ChessMove move = new ChessMove(start, end, null);
-            sendMove(move);
+            // 2. Inicializa la conexión WebSocket para observar
+            this.wsClient = new WebSocketClientManager(serverURL, this);
+
+            // 3. Envía el comando CONNECT al servidor para observar
+            ConnectCommand connectCommand = new ConnectCommand(authToken, gameID, null); // Color null para observador
+            wsClient.sendCommand(connectCommand);
+
+            this.inGame = true;
+            this.currentGameId = gameID;
+            this.currentPlayerColor = null; // Un observador no tiene color asignado
+            System.out.println("Te has unido al juego " + gameID + " como observador.");
+            // El tablero se dibujará cuando el servidor envíe el mensaje LOAD_GAME
+        } catch (NumberFormatException e) {
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error: El ID del juego debe ser un número." + EscapeSequences.RESET_TEXT_COLOR);
+        } catch (IOException e) {
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Error del servidor al observar el juego (HTTP): " + e.getMessage() + EscapeSequences.RESET_TEXT_COLOR);
         } catch (Exception e) {
-            System.out.println("Invalid move: " + e.getMessage());
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "No se pudo establecer la conexión WebSocket: " + e.getMessage() + EscapeSequences.RESET_TEXT_COLOR);
+            this.inGame = false;
+            // e.printStackTrace(); // Descomentar para depuración
         }
     }
 
-    private void handleResign() {
-        if (currentPlayerColor == null) {
-            System.out.println("Observers cannot resign.");
+
+    private void makeMove(Scanner scanner, String moveArgs) throws IOException { // Removido InvalidMoveException del throws
+        // Ejemplo de formato: "e2 e4" o "g7 g8 queen"
+        String[] parts = moveArgs.split(" ");
+        if (parts.length < 2) {
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Uso: make move <posición_inicio> <posición_fin> [pieza_promoción]." + EscapeSequences.RESET_TEXT_COLOR);
             return;
         }
-        sendResign();
-        inGame = false;
-        currentGameId = null;
-        currentPlayerColor = null;
-        wsClient.disconnect();
-        System.out.println("You have resigned. Type Help for commands.");
-    }
 
-    private void handleLeave() {
-        sendLeave();
-        inGame = false;
-        currentGameId = null;
-        currentPlayerColor = null;
-        wsClient.disconnect();
-        System.out.println("You have left the game. Type Help for commands.");
-    }
+        ChessPosition startPos = parsePosition(parts[0]);
+        ChessPosition endPos = parsePosition(parts[1]);
+        ChessPiece.PieceType promotionPiece = null;
+        if (parts.length > 2) {
+            try {
+                promotionPiece = ChessPiece.PieceType.valueOf(parts[2].toUpperCase());
+                if (promotionPiece != ChessPiece.PieceType.QUEEN &&
+                        promotionPiece != ChessPiece.PieceType.ROOK &&
+                        promotionPiece != ChessPiece.PieceType.BISHOP &&
+                        promotionPiece != ChessPiece.PieceType.KNIGHT) {
+                    throw new IllegalArgumentException("Pieza de promoción inválida.");
+                }
+            } catch (IllegalArgumentException e) {
+                System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Pieza de promoción inválida. Debe ser QUEEN, ROOK, BISHOP o KNIGHT." + EscapeSequences.RESET_TEXT_COLOR);
+                return;
+            }
+        }
 
-    private void sendMove(ChessMove move) {
-        if (currentPlayerColor == null) {
-            System.out.println("Observers cannot make moves.");
+        if (startPos == null || endPos == null) {
+            System.out.println(EscapeSequences.SET_TEXT_COLOR_RED + "Posición inválida. Usa el formato de ajedrez (ej. e2, e4)." + EscapeSequences.RESET_TEXT_COLOR);
             return;
         }
-        UserGameCommand command = new MakeMoveCommand(authToken, Integer.parseInt(currentGameId), move);
-        wsClient.sendCommand(command);
+
+        // Crea el objeto ChessMove
+        ChessMove move = new ChessMove(startPos, endPos, promotionPiece);
+
+        // Envía el comando MakeMoveCommand a través del WebSocket
+        MakeMoveCommand makeMoveCommand = new MakeMoveCommand(authToken, currentGameId, move);
+        wsClient.sendCommand(makeMoveCommand);
     }
 
-    private void sendResign() {
-        if (currentPlayerColor == null) {
-            System.out.println("Observers cannot resign.");
+
+    private void leaveGame() throws IOException {
+        // Enviar comando LEAVE al servidor vía WebSocket
+        UserGameCommand leaveCommand = new UserGameCommand(UserGameCommand.CommandType.LEAVE, authToken, currentGameId);
+        wsClient.sendCommand(leaveCommand);
+
+        // Resetear estado del cliente
+        this.inGame = false;
+        this.currentGameId = null;
+        this.currentPlayerColor = null;
+        this.currentBoard.resetBoard(); // O limpiar el tablero
+
+        System.out.println("Has abandonado el juego.");
+        // No llamamos a printPrompt aquí, ya que el bucle principal lo hará después de esta función
+    }
+
+    private void resignGame() throws IOException {
+        System.out.print("¿Estás seguro de que quieres renunciar al juego? (yes/no): ");
+        Scanner confirmationScanner = new Scanner(System.in);
+        String confirmation = confirmationScanner.nextLine().trim().toLowerCase();
+
+        if (!confirmation.equals("yes")) {
+            System.out.println("Renuncia cancelada.");
             return;
         }
-        UserGameCommand command = new UserGameCommand(UserGameCommand.CommandType.RESIGN, authToken, Integer.parseInt(currentGameId));
-        wsClient.sendCommand(command);
+        // Enviar comando RESIGN al servidor vía WebSocket
+        UserGameCommand resignCommand = new UserGameCommand(UserGameCommand.CommandType.RESIGN, authToken, currentGameId);
+        wsClient.sendCommand(resignCommand);
+
+        // El servidor debería enviar una notificación de que el juego ha terminado.
+        // Aquí no reseteamos el estado de 'inGame' inmediatamente, esperando la confirmación del servidor.
+        System.out.println("Solicitud de renuncia enviada. Esperando confirmación del servidor...");
     }
 
-    private void sendLeave() {
-        UserGameCommand command = new UserGameCommand(UserGameCommand.CommandType.LEAVE, authToken, Integer.parseInt(currentGameId));
-        wsClient.sendCommand(command);
+
+    private void quit() {
+        System.out.println("Saliendo del cliente...");
+        this.isRunning = false;
     }
 
-    private ChessPosition parsePosition(String pos) throws Exception {
-        if (pos.length() != 2) {
-            throw new Exception("Invalid position format");
+
+    /**
+     * Dibuja el tablero de ajedrez en la consola.
+     *
+     * @param board          El tablero de ajedrez a dibujar.
+     * @param playerPerspective El color del equipo para determinar la perspectiva (WHITE para abajo, BLACK para arriba).
+     */
+    private void drawChessBoard(ChessBoard board, ChessGame.TeamColor playerPerspective) {
+        // Limpiar pantalla y resetear colores para empezar un lienzo limpio
+        System.out.print(EscapeSequences.ERASE_SCREEN);
+        System.out.print(EscapeSequences.SET_CURSOR_TO_HOME_POSITION); // Mover el cursor al inicio
+        System.out.print(EscapeSequences.RESET_ALL);
+
+        boolean isWhitePerspective = (playerPerspective == ChessGame.TeamColor.WHITE);
+
+        // Define el rango y dirección de las filas y columnas para la perspectiva
+        int startRow = isWhitePerspective ? 8 : 1;
+        int endRow = isWhitePerspective ? 1 : 8;
+        int rowIncrement = isWhitePerspective ? -1 : 1;
+
+        int startCol = isWhitePerspective ? 1 : 8;
+        int endCol = isWhitePerspective ? 8 : 1;
+        int colIncrement = isWhitePerspective ? 1 : -1;
+
+        // Imprimir encabezado de columnas (letras a-h)
+        System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY); // Fondo para las coordenadas
+        System.out.print(EscapeSequences.SET_TEXT_COLOR_WHITE); // Texto para las coordenadas
+        System.out.print("   "); // Offset para los números de fila
+        for (int col = startCol; isWhitePerspective ? col <= endCol : col >= endCol; col += colIncrement) {
+            System.out.print(" " + (char) ('a' + col - 1) + " ");
         }
-        char colChar = pos.charAt(0);
-        char rowChar = pos.charAt(1);
-        int col = colChar - 'a' + 1;
-        int row = rowChar - '0';
-        if (col < 1 || col > 8 || row < 1 || row > 8) {
-            throw new Exception("Position out of bounds");
+        System.out.println(EscapeSequences.RESET_ALL); // Restablecer color después de la línea de encabezado
+
+        for (int r = startRow; isWhitePerspective ? r >= endRow : r <= endRow; r += rowIncrement) {
+            // Imprimir número de fila
+            System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY + EscapeSequences.SET_TEXT_COLOR_WHITE + " " + r + " " + EscapeSequences.RESET_ALL);
+
+            for (int c = startCol; isWhitePerspective ? c <= endCol : c >= endCol; c += colIncrement) {
+                ChessPosition position = new ChessPosition(r, c);
+                ChessPiece piece = board.getPiece(position);
+
+                // Determinar el color de fondo del cuadrado
+                boolean isLightSquare = (r + c) % 2 != 0; // Patrón de tablero de ajedrez
+                String bgColor = isLightSquare ? EscapeSequences.SET_BG_COLOR_LIGHT_GREY : EscapeSequences.SET_BG_COLOR_BRIGHT_GREEN; // Puedes ajustar SET_BG_COLOR_BRIGHT_GREEN a lo que prefieras para las celdas oscuras
+
+                System.out.print(bgColor); // Aplica el color de fondo
+
+                // Obtener y imprimir el símbolo de la pieza (ya incluye su color)
+                String pieceSymbol = getPieceSymbol(piece);
+                System.out.print(pieceSymbol);
+            }
+            System.out.println(EscapeSequences.RESET_ALL); // Restablecer colores al final de cada fila
         }
+
+        // Imprimir pie de página de columnas (igual que el encabezado)
+        System.out.print(EscapeSequences.SET_BG_COLOR_DARK_GREY); // Fondo para las coordenadas
+        System.out.print(EscapeSequences.SET_TEXT_COLOR_WHITE); // Texto para las coordenadas
+        System.out.print("   ");
+        for (int col = startCol; isWhitePerspective ? col <= endCol : col >= endCol; col += colIncrement) {
+            System.out.print(" " + (char) ('a' + col - 1) + " ");
+        }
+        System.out.println(EscapeSequences.RESET_ALL); // Restablecer color final
+
+        // Asegurarse de que el fondo de la consola se restablezca al color por defecto del terminal
+        System.out.print(EscapeSequences.RESET_ALL);
+    }
+
+    /**
+     * Obtiene el símbolo Unicode de la pieza con su color ANSI.
+     *
+     * @param piece La pieza de ajedrez.
+     * @return Una cadena con el código ANSI de color y el símbolo Unicode de la pieza.
+     */
+    private String getPieceSymbol(ChessPiece piece) {
+        if (piece == null) {
+            return EscapeSequences.EMPTY; // Un espacio vacío definido en EscapeSequences
+        }
+
+        ChessGame.TeamColor color = piece.getTeamColor();
+        ChessPiece.PieceType type = piece.getPieceType();
+
+        // Determina el código de color ANSI para la pieza
+        // Usa colores más contrastantes para las piezas sobre fondos de tablero
+        String pieceColorCode = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.SET_TEXT_COLOR_WHITE : EscapeSequences.SET_TEXT_COLOR_BLACK;
+
+        String symbol;
+        switch (type) {
+            case PAWN:
+                symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_PAWN : EscapeSequences.BLACK_PAWN;
+                break;
+            case KNIGHT:
+                symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_KNIGHT : EscapeSequences.BLACK_KNIGHT;
+                break;
+            case BISHOP:
+                symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_BISHOP : EscapeSequences.BLACK_BISHOP;
+                break;
+            case ROOK:
+                symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_ROOK : EscapeSequences.BLACK_ROOK;
+                break;
+            case QUEEN:
+                symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_QUEEN : EscapeSequences.BLACK_QUEEN;
+                break;
+            case KING:
+                symbol = (color == ChessGame.TeamColor.WHITE) ? EscapeSequences.WHITE_KING : EscapeSequences.BLACK_KING;
+                break;
+            default:
+                symbol = EscapeSequences.EMPTY; // Esto no debería pasar
+        }
+        // Aplica el color y luego resetea el color del texto para no afectar lo siguiente
+        return pieceColorCode + symbol + EscapeSequences.RESET_TEXT_COLOR;
+    }
+
+    /**
+     * Parsea una cadena de posición de ajedrez (ej. "e2") a un objeto ChessPosition.
+     *
+     * @param posStr La cadena de posición (ej. "e2").
+     * @return Un objeto ChessPosition o null si la cadena es inválida.
+     */
+    private ChessPosition parsePosition(String posStr) {
+        if (posStr == null || posStr.length() != 2) {
+            return null;
+        }
+        char colChar = Character.toLowerCase(posStr.charAt(0));
+        int row = Character.getNumericValue(posStr.charAt(1));
+
+        if (colChar < 'a' || colChar > 'h' || row < 1 || row > 8) {
+            return null;
+        }
+
+        int col = colChar - 'a' + 1; // 'a' es la columna 1, 'b' es la 2, etc.
         return new ChessPosition(row, col);
     }
 
 
-    private boolean loginCheck() {
-        if (!isLoggedIn) {
-            System.out.println("You must be logged in to perform this action");
-            return false;
-        }
-        return true;
-    }
-
-    private void displayBoard() {
-System.out.println(EscapeSequences.ERASE_SCREEN);
-
-    // Determinar si el tablero debe mostrarse desde la perspectiva de las blancas o las negras
-    boolean isWhitePerspective = "white".equalsIgnoreCase(currentPlayerColor);
-
-    // Definir el rango de filas y columnas según la perspectiva
-    int startRow = isWhitePerspective ? 8 : 1;
-    int endRow = isWhitePerspective ? 1 : 8;
-    int rowIncrement = isWhitePerspective ? -1 : 1;
-    int startCol = isWhitePerspective ? 1 : 8;
-    int endCol = isWhitePerspective ? 8 : 1;
-    int colIncrement = isWhitePerspective ? 1 : -1;
-
-    // Mostrar el tablero
-    for (int row = startRow; isWhitePerspective ? row >= endRow : row <= endRow; row += rowIncrement) {
-        System.out.print(row + " ");
-        for (int col = startCol; isWhitePerspective ? col <= endCol : col >= endCol; col += colIncrement) {
-            ChessPosition pos = new ChessPosition(row, col);
-            ChessPiece piece = board.getPiece(pos);
-            String pieceSymbol = piece != null ? getPieceSymbol(piece) : EscapeSequences.EMPTY;
-            String bgColor = ((row + col) % 2 == 0) ? EscapeSequences.SET_BG_COLOR_LIGHT_GREY : EscapeSequences.SET_BG_COLOR_DARK_GREY;
-            System.out.print(bgColor + pieceSymbol + EscapeSequences.RESET_BG_COLOR);
-        }
-        System.out.println();
-    }
-    }
-
-
-    private String getPieceSymbol(ChessPiece piece) {
-        ChessGame.TeamColor color = piece.getTeamColor();
-        ChessPiece.PieceType type = piece.getPieceType();
-        switch (type) {
-            case PAWN:
-                return color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_PAWN : EscapeSequences.BLACK_PAWN;
-            case KNIGHT:
-                return color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_KNIGHT : EscapeSequences.BLACK_KNIGHT;
-            case BISHOP:
-                return color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_BISHOP : EscapeSequences.BLACK_BISHOP;
-            case ROOK:
-                return color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_ROOK : EscapeSequences.BLACK_ROOK;
-            case QUEEN:
-                return color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_QUEEN : EscapeSequences.BLACK_QUEEN;
-            case KING:
-                return color == ChessGame.TeamColor.WHITE ? EscapeSequences.WHITE_KING : EscapeSequences.BLACK_KING;
-            default:
-                return EscapeSequences.EMPTY;
-        }
-    }
-
     public static void main(String[] args) {
+        // Asegúrate de que esta URL sea la correcta para tu servidor
         String serverURL = "http://localhost:8080";
         Client client = new Client(serverURL);
-        client.run();
+        client.run(); // Llama al método run()
     }
-
-
-
 }

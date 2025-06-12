@@ -12,6 +12,7 @@ import java.util.Objects;
 public class ServerMessage {
     ServerMessageType serverMessageType;
 
+    // Campos para diferentes tipos de mensajes
     protected String errorMessage; // Para mensajes de ERROR
     protected String message;      // Para mensajes de NOTIFICATION
     protected ChessGame game;      // Para mensajes de LOAD_GAME
@@ -22,13 +23,33 @@ public class ServerMessage {
         NOTIFICATION
     }
 
+    // Constructor base que solo establece el tipo de mensaje
     public ServerMessage(ServerMessageType type) {
         this.serverMessageType = type;
-        this.errorMessage = null; // Inicializar a nulo
-        this.message = null;      // Inicializar a nulo
-        this.game = null;         // Inicializar a nulo
     }
 
+    // --- Constructores específicos para cada tipo de mensaje ---
+    // (Estos constructores son convenientes para CREAR mensajes en el servidor)
+
+    // Constructor para mensajes de ERROR
+    public ServerMessage(String errorMessage) {
+        this.serverMessageType = ServerMessageType.ERROR;
+        this.errorMessage = errorMessage;
+    }
+
+    // Constructor para mensajes de NOTIFICATION
+    public ServerMessage(ServerMessageType type, String message) { // Cambié el orden para evitar colisiones
+        this.serverMessageType = type; // Asumimos que aquí siempre será NOTIFICATION
+        this.message = message;
+    }
+
+    // Constructor para mensajes de LOAD_GAME
+    public ServerMessage(ChessGame game) { // Este constructor es para LOAD_GAME
+        this.serverMessageType = ServerMessageType.LOAD_GAME;
+        this.game = game;
+    }
+
+    // --- Getters para todos los campos ---
     public String getErrorMessage() {
         return errorMessage;
     }

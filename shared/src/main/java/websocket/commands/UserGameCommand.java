@@ -1,11 +1,17 @@
 package websocket.commands;
 
-import java.util.Objects;
-
 public class UserGameCommand {
-    protected CommandType commandType;
-    protected String authToken;
-    protected Integer gameID;
+    private String authToken;
+    private CommandType commandType;
+    private Integer gameID; // Usar Integer para permitir null si no aplica a un juego específico
+
+    public enum CommandType {
+        CONNECT,
+        MAKE_MOVE,
+        LEAVE,
+        RESIGN
+        // Puedes añadir más comandos si los necesitas
+    }
 
     public UserGameCommand(CommandType commandType, String authToken, Integer gameID) {
         this.commandType = commandType;
@@ -13,37 +19,15 @@ public class UserGameCommand {
         this.gameID = gameID;
     }
 
-    public CommandType getCommandType() {
-        return commandType;
-    }
-
     public String getAuthString() {
         return authToken;
     }
 
+    public CommandType getCommandType() {
+        return commandType;
+    }
+
     public Integer getGameID() {
         return gameID;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        UserGameCommand that = (UserGameCommand) o;
-        return commandType == that.commandType &&
-                Objects.equals(authToken, that.authToken) &&
-                Objects.equals(gameID, that.gameID);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(commandType, authToken, gameID);
-    }
-
-    public enum CommandType {
-        CONNECT,
-        MAKE_MOVE,
-        LEAVE,
-        RESIGN
     }
 }
