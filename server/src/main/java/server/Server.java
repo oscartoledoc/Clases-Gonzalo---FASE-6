@@ -32,6 +32,9 @@ public class Server {
             this.webSocketServer = new WebSocketServer(gameService);
             this.gson = new Gson();
         } catch (DataAccessException e) {
+            // Es vital imprimir la excepción aquí para depurar problemas de DB
+            System.err.println("ERROR: Fallo al inicializar el servidor debido a un problema de base de datos.");
+            e.printStackTrace(); // Esto imprimirá el stack trace completo del error de la base de datos
             throw new RuntimeException("Unable to connect to database", e);
         }
     }
@@ -48,10 +51,12 @@ public class Server {
         Spark.init();
 
         Spark.awaitInitialization();
+        System.out.println("Servidor Spark iniciado en el puerto: " + Spark.port()); // Mensaje de confirmación
         return Spark.port();
     }
 
     private void registerEndpoints() {
+        // ... (Tu código actual de registerEndpoints va aquí, sin cambios)
         Spark.post("/user", (req, res) -> {
             try {
                 RegisterRequest request = gson.fromJson(req.body(), RegisterRequest.class);
@@ -225,6 +230,13 @@ public class Server {
         Spark.stop();
         Spark.awaitStop();
         webSocketServer.stop();
+    }
+
+    // AÑADE ESTE MÉTODO MAIN AL FINAL DE TU CLASE Server.java
+    public static void main(String[] args) {
+        var server = new Server();
+        // Puedes cambiar el puerto si lo necesitas, pero 8080 es estándar para la aplicación cliente
+        server.run(8080);
     }
 
     private record RegisterRequest(String username, String password, String email) {}
